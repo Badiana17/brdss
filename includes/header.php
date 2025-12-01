@@ -1,9 +1,14 @@
+<?php
+// This file is included by pages that require authentication
+// It outputs the HTML header, navigation, and opens content divs
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $pageTitle ?? 'BRDSS - Barangay Resident Data & Social Services'; ?></title>
+    <title><?php echo isset($pageTitle) ? htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') : 'BRDSS - Barangay Resident Data & Social Services'; ?></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -36,6 +41,7 @@
         }
         .top-nav h1 {
             font-size: 1.5rem;
+            margin: 0;
         }
         .user-info {
             display: flex;
@@ -46,6 +52,7 @@
             background-color: #34495e;
             padding: 0.5rem 1rem;
             border-radius: 4px;
+            font-size: 0.9rem;
         }
         .user-info a {
             color: white;
@@ -76,6 +83,7 @@
         .breadcrumb {
             color: #7f8c8d;
             font-size: 0.9rem;
+            margin: 0;
         }
         .alert {
             padding: 1rem;
@@ -87,7 +95,7 @@
             color: #155724;
             border: 1px solid #c3e6cb;
         }
-        .alert-error {
+        .alert-danger {
             background-color: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
@@ -96,6 +104,11 @@
             background-color: #d1ecf1;
             color: #0c5460;
             border: 1px solid #bee5eb;
+        }
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
         }
         .btn {
             padding: 0.75rem 1.5rem;
@@ -184,6 +197,7 @@
         .form-group textarea:focus {
             outline: none;
             border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
         }
         .card {
             background: white;
@@ -204,6 +218,7 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             text-align: center;
+            border-left: 4px solid #3498db;
         }
         .stat-card h3 {
             color: #7f8c8d;
@@ -219,23 +234,35 @@
             display: flex;
             gap: 0.5rem;
         }
+        .modal-content {
+            border-radius: 8px;
+            border: none;
+        }
+        .modal-header {
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+        }
+        .modal-header .btn-close {
+            filter: brightness(0) invert(1);
+        }
     </style>
 </head>
 <body>
     <div class="main-wrapper">
         <?php if (isset($_SESSION['user_id'])): ?>
-            <?php include 'includes/sidebar.php'; ?>
+            <?php include __DIR__ . '/sidebar.php'; ?>
         <?php endif; ?>
         
         <div class="content-wrapper">
             <?php if (isset($_SESSION['user_id'])): ?>
-            <div class="top-nav">
-                <h1>🏘️ BRDSS System</h1>
-                <div class="user-info">
-                    <span><?php echo htmlspecialchars($_SESSION['username']); ?> (<?php echo htmlspecialchars($_SESSION['role']); ?>)</span>
-                    <a href="logout.php">Logout</a>
+                <div class="top-nav">
+                    <h1>🏘️ BRDSS System</h1>
+                    <div class="user-info">
+                        <span><?php echo htmlspecialchars($_SESSION['username'] ?? 'User', ENT_QUOTES, 'UTF-8'); ?> (<?php echo htmlspecialchars($_SESSION['role'] ?? 'Guest', ENT_QUOTES, 'UTF-8'); ?>)</span>
+                        <a href="logout.php">Logout</a>
+                    </div>
                 </div>
-            </div>
             <?php endif; ?>
             
             <div class="content">
