@@ -22,6 +22,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim((string)filter_input(INPUT_POST, 'username', FILTER_SANITIZE_FULL_SPECIAL_CHARS));
     $password = $_POST['password'] ?? '';
     
+    // Check for logout message
+if (isset($_GET['logout'])) {
+    $success = 'You have been logged out successfully.';
+}
+
     if ($username !== '' && $password !== '') {
         try {
             // Fetch user from database

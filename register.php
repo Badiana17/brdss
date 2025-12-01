@@ -84,6 +84,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
         if ($stmt->fetch()) {
             throw new Exception('Email already registered. Please use a different one.');
         }
+    
+        // All validations passed, proceed to create user
+        header("refresh:3;url=login.php");
 
         // Hash password
         $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);

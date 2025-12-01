@@ -42,10 +42,6 @@ $userRole = $_SESSION['role'] ?? 'Staff';
         border-left-color: #3498db;
         font-weight: 600;
     }
-    .sidebar-menu a::before {
-        margin-right: 0.75rem;
-        display: inline-block;
-    }
     .sidebar-divider {
         height: 1px;
         background-color: #34495e;
@@ -58,6 +54,13 @@ $userRole = $_SESSION['role'] ?? 'Staff';
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 1px;
+    }
+    .logout-link {
+        border-left-color: #e74c3c !important;
+    }
+    .logout-link:hover {
+        background-color: #c0392b !important;
+        border-left-color: #e74c3c !important;
     }
     @media (max-width: 768px) {
         .sidebar {
@@ -100,5 +103,9 @@ $userRole = $_SESSION['role'] ?? 'Staff';
             <li class="sidebar-title">Administration</li>
             <li><a href="users.php" class="<?php echo $currentPage === 'users.php' ? 'active' : ''; ?>">👤 Users</a></li>
         <?php endif; ?>
+        
+        <!-- Logout -->
+        <li class="sidebar-divider"></li>
+        <li><a href="logout.php" class="logout-link" onclick="return confirm('Are you sure you want to logout?');">🚪 Logout</a></li>
     </ul>
 </aside>

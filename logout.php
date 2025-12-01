@@ -27,6 +27,8 @@ if (ini_get('session.use_cookies')) {
         $params['httponly']
     );
 }
+// Redirect to login with logout message
+header('Location: login.php?logout=1');
 
 // Destroy the session
 session_destroy();
