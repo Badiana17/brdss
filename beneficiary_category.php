@@ -117,13 +117,35 @@ try {
     <title><?php echo sanitize($pageTitle); ?></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+        }
+        .main-content {
+            margin-left: 250px;
+            flex: 1;
+            padding: 2rem;
+        }
+        .content-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+    </style>
 </head>
-<body class="bg-light">
-<div class="container my-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Beneficiary Categories</h2>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">+ Add New Category</button>
-    </div>
+
+<body>
+    <?php include 'includes/sidebar.php'; ?>
+    
+    <div class="main-content">
+        <div class="content-wrapper">
+            <h2>📋 Beneficiary Categories</h2>
+            <p class="text-muted mb-4">Manage assistance program categories</p>
+
+            <div class="mb-3">
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">+ Add New Category</button>
+            </div>
 
     <?php if (!empty($message)): ?>
         <div class="alert alert-<?php echo sanitize($messageType); ?> alert-dismissible fade show" role="alert">

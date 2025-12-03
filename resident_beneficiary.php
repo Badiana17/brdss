@@ -1,7 +1,6 @@
 <?php
 session_start();
 require 'config.php';
-require 'includes/header.php';
 
 /** @var \PDO $pdo */
 
@@ -32,57 +31,40 @@ try {
             throw new RuntimeException('Invalid request token.');
         }
 
-        // Helper to fetch sanitized inputs
-        $name = trim((string)filter_input(INPUT_POST, 'category_name', FILTER_UNSAFE_RAW));
-        $description = trim((string)filter_input(INPUT_POST, 'description', FILTER_UNSAFE_RAW));
-        $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+        $resident_id = isset($_POST['resident_id']) ? (int)$_POST['resident_id'] : 0;
+        $category_id = isset($_POST['category_id']) ? (int)$_POST['category_id'] : 0;
 
-        if (isset($_POST['create'])) {
-            if ($name === '') {
-                throw new RuntimeException('Category name is required.');
+        if (isset($_POST['assign'])) {
+            if ($resident_id <= 0 || $category_id <= 0) {
+                throw new RuntimeException('Invalid resident or category.');
             }
-            $stmt = $pdo->prepare("INSERT INTO beneficiary_category (category_name, description) VALUES (:name, :description)");
-            $stmt->bindValue(':name', $name, PDO::PARAM_STR);
-            $stmt->bindValue(':description', $description, PDO::PARAM_STR);
-            $stmt->execute();
+            // Check if already assigned
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM resident_beneficiary WHERE resident_id = :resident_id AND category_id = :category_id");
+            $stmt->execute([':resident_id' => $resident_id, ':category_id' => $category_id]);
+            if ($stmt->fetchColumn() > 0) {
+            throw new RuntimeException('Resident is already assigned to this category.');
+            }
+            $stmt = $pdo->prepare("INSERT INTO resident_beneficiary (resident_id, category_id, is_active, date_classified) VALUES (:resident_id, :category_id, 1, NOW())");
+            $stmt->execute([':resident_id' => $resident_id, ':category_id' => $category_id]);
             $newId = (int)$pdo->lastInsertId();
             if (function_exists('logActivity')) {
-                // call signature used elsewhere: logActivity($user_id, $activity, $table, $row_id)
-                try { logActivity((int)$_SESSION['user_id'], 'Created beneficiary category', 'beneficiary_category', $newId); } catch (Throwable $e) { error_log($e->getMessage()); }
+                try { logActivity((int)$_SESSION['user_id'], 'Assigned beneficiary category to resident', 'resident_beneficiary', $newId); } catch (Throwable $e) { error_log($e->getMessage()); }
             }
-            $_SESSION['flash_message'] = 'Category created.';
+            $_SESSION['flash_message'] = 'Category assigned to resident.';
             header('Location: resident_beneficiary.php');
             exit;
         }
 
-        if (isset($_POST['update'])) {
-            if ($id <= 0 || $name === '') {
-                throw new RuntimeException('Invalid input for update.');
+        if (isset($_POST['unassign'])) {
+            if ($resident_id <= 0 || $category_id <= 0) {
+                throw new RuntimeException('Invalid resident or category.');
             }
-            $stmt = $pdo->prepare("UPDATE beneficiary_category SET category_name = :name, description = :description WHERE category_id = :id");
-            $stmt->bindValue(':name', $name, PDO::PARAM_STR);
-            $stmt->bindValue(':description', $description, PDO::PARAM_STR);
-            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
+            $stmt = $pdo->prepare("DELETE FROM resident_beneficiary WHERE resident_id = :resident_id AND category_id = :category_id");
+            $stmt->execute([':resident_id' => $resident_id, ':category_id' => $category_id]);
             if (function_exists('logActivity')) {
-                try { logActivity((int)$_SESSION['user_id'], 'Updated beneficiary category', 'beneficiary_category', $id); } catch (Throwable $e) { error_log($e->getMessage()); }
+                try { logActivity((int)$_SESSION['user_id'], 'Unassigned beneficiary category from resident', 'resident_beneficiary', $resident_id); } catch (Throwable $e) { error_log($e->getMessage()); }
             }
-            $_SESSION['flash_message'] = 'Category updated.';
-            header('Location: resident_beneficiary.php');
-            exit;
-        }
-
-        if (isset($_POST['delete'])) {
-            if ($id <= 0) {
-                throw new RuntimeException('Invalid category id.');
-            }
-            $stmt = $pdo->prepare("DELETE FROM beneficiary_category WHERE category_id = :id");
-            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-            if (function_exists('logActivity')) {
-                try { logActivity((int)$_SESSION['user_id'], 'Deleted beneficiary category', 'beneficiary_category', $id); } catch (Throwable $e) { error_log($e->getMessage()); }
-            }
-            $_SESSION['flash_message'] = 'Category deleted.';
+            $_SESSION['flash_message'] = 'Category unassigned from resident.';
             header('Location: resident_beneficiary.php');
             exit;
         }
@@ -92,87 +74,144 @@ try {
     $message = $e->getMessage();
 }
 
-// Fetch categories
+// Fetch residents with their beneficiary categories
 try {
-    $stmt = $pdo->query("SELECT category_id, category_name, description FROM beneficiary_category ORDER BY category_id DESC");
+    $stmt = $pdo->query("
+        SELECT
+            r.resident_id,
+            r.first_name,
+            r.middle_name,
+            r.last_name,
+            r.status,
+            GROUP_CONCAT(bc.category_name SEPARATOR ', ') as categories
+        FROM residents r
+        LEFT JOIN resident_beneficiary rb ON r.resident_id = rb.resident_id AND rb.is_active = 1
+        LEFT JOIN beneficiary_category bc ON rb.category_id = bc.category_id
+        WHERE r.deleted_at IS NULL
+        GROUP BY r.resident_id, r.first_name, r.middle_name, r.last_name, r.status
+        ORDER BY r.last_name, r.first_name
+    ");
+    $residents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    error_log('Fetch residents error: ' . $e->getMessage());
+    $residents = [];
+}
+
+// Fetch all active categories for assignment
+try {
+    $stmt = $pdo->query("SELECT category_id, category_name FROM beneficiary_category WHERE is_active = 1 ORDER BY category_name");
     $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Throwable $e) {
     error_log('Fetch categories error: ' . $e->getMessage());
     $categories = [];
 }
 ?>
-<div class="row">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resident Beneficiaries - BRDSS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+        }
+        .main-content {
+            margin-left: 250px;
+            flex: 1;
+            padding: 2rem;
+        }
+        .content-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
     <?php include 'includes/sidebar.php'; ?>
-    <div class="col-md-9">
-        <h2>Beneficiary Categories</h2>
+    
+    <div class="main-content">
+        <div class="content-wrapper">
+            <h2>🎯 Resident Beneficiaries</h2>
+            <p class="text-muted mb-4">Assign and manage beneficiary categories for residents</p>
 
         <?php if ($message): ?>
-            <div class="alert alert-<?php echo ($message === 'Category created.' || $message === 'Category updated.' || $message === 'Category deleted.') ? 'success' : 'danger'; ?>">
+            <div class="alert alert-<?php echo (strpos($message, 'assigned') !== false || strpos($message, 'unassigned') !== false) ? 'success' : 'danger'; ?>">
                 <?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?>
             </div>
         <?php endif; ?>
 
-        <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#createModal">Add Category</button>
-
         <table class="table">
-            <thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Actions</th></tr></thead>
+            <thead><tr><th>ID</th><th>Resident Name</th><th>Status</th><th>Beneficiary Categories</th><th>Actions</th></tr></thead>
             <tbody>
-                <?php if (empty($categories)): ?>
-                    <tr><td colspan="4">No categories found.</td></tr>
+                <?php if (empty($residents)): ?>
+                    <tr><td colspan="5">No residents found.</td></tr>
                 <?php else: ?>
-                    <?php foreach ($categories as $c): ?>
+                    <?php foreach ($residents as $r): ?>
                         <tr>
-                            <td><?php echo (int)$c['category_id']; ?></td>
-                            <td><?php echo htmlspecialchars($c['category_name'], ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td><?php echo htmlspecialchars($c['description'], ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo (int)$r['resident_id']; ?></td>
+                            <td><?php echo htmlspecialchars($r['first_name'] . ' ' . ($r['middle_name'] ? $r['middle_name'] . ' ' : '') . $r['last_name'], ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($r['status'], ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($r['categories'] ?: 'None', ENT_QUOTES, 'UTF-8'); ?></td>
                             <td>
-                                <button class="btn btn-sm btn-warning" onclick="editCategory(<?php echo json_encode((int)$c['category_id']); ?>, <?php echo json_encode($c['category_name']); ?>, <?php echo json_encode($c['description']); ?>)">Edit</button>
-
-                                <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this category?');">
-                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
-                                    <input type="hidden" name="id" value="<?php echo (int)$c['category_id']; ?>">
-                                    <button type="submit" name="delete" class="btn btn-sm btn-danger">Delete</button>
-                                </form>
+                                <button class="btn btn-sm btn-success" onclick="assignCategory(<?php echo (int)$r['resident_id']; ?>, '<?php echo htmlspecialchars($r['first_name'] . ' ' . $r['last_name'], ENT_QUOTES, 'UTF-8'); ?>')">Assign Category</button>
+                                <?php if ($r['categories']): ?>
+                                    <button class="btn btn-sm btn-warning" onclick="unassignCategory(<?php echo (int)$r['resident_id']; ?>, '<?php echo htmlspecialchars($r['first_name'] . ' ' . $r['last_name'], ENT_QUOTES, 'UTF-8'); ?>')">Unassign Category</button>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </tbody>
         </table>
+        </div>
+    </div>
 
-        <!-- Create Modal -->
-        <div class="modal fade" id="createModal" tabindex="-1">
+        <!-- Assign Modal -->
+        <div class="modal fade" id="assignModal" tabindex="-1">
             <div class="modal-dialog">
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
+                    <input type="hidden" name="resident_id" id="assignResidentId">
                     <div class="modal-content">
-                        <div class="modal-header"><h5>Add Category</h5></div>
+                        <div class="modal-header"><h5>Assign Beneficiary Category</h5></div>
                         <div class="modal-body">
-                            <input type="text" name="category_name" class="form-control mb-2" placeholder="Category Name" required>
-                            <textarea name="description" class="form-control mb-2" placeholder="Description"></textarea>
+                            <p>Assigning category to: <strong id="assignResidentName"></strong></p>
+                            <select name="category_id" class="form-control" required>
+                                <option value="">Select Category</option>
+                                <?php foreach ($categories as $c): ?>
+                                    <option value="<?php echo (int)$c['category_id']; ?>"><?php echo htmlspecialchars($c['category_name'], ENT_QUOTES, 'UTF-8'); ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                         <div class="modal-footer">
-                            <button type="submit" name="create" class="btn btn-primary">Save</button>
+                            <button type="submit" name="assign" class="btn btn-primary">Assign</button>
                         </div>
                     </div>
                 </form>
             </div>
         </div>
 
-        <!-- Edit Modal -->
-        <div class="modal fade" id="editModal" tabindex="-1">
+        <!-- Unassign Modal -->
+        <div class="modal fade" id="unassignModal" tabindex="-1">
             <div class="modal-dialog">
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
+                    <input type="hidden" name="resident_id" id="unassignResidentId">
                     <div class="modal-content">
-                        <div class="modal-header"><h5>Edit Category</h5></div>
+                        <div class="modal-header"><h5>Unassign Beneficiary Category</h5></div>
                         <div class="modal-body">
-                            <input type="hidden" name="id" id="editId">
-                            <input type="text" name="category_name" id="editCategoryName" class="form-control mb-2" placeholder="Category Name" required>
-                            <textarea name="description" id="editDescription" class="form-control mb-2" placeholder="Description"></textarea>
+                            <p>Unassigning category from: <strong id="unassignResidentName"></strong></p>
+                            <select name="category_id" id="unassignCategoryId" class="form-control" required>
+                                <option value="">Select Category to Unassign</option>
+                                <!-- Categories will be populated by JavaScript -->
+                            </select>
                         </div>
                         <div class="modal-footer">
-                            <button type="submit" name="update" class="btn btn-primary">Update</button>
+                            <button type="submit" name="unassign" class="btn btn-danger">Unassign</button>
                         </div>
                     </div>
                 </form>
@@ -183,12 +222,51 @@ try {
 </div>
 
 <script>
-function editCategory(id, name, description) {
-    document.getElementById('editId').value = id;
-    document.getElementById('editCategoryName').value = name;
-    document.getElementById('editDescription').value = description;
-    new bootstrap.Modal(document.getElementById('editModal')).show();
+function assignCategory(residentId, residentName) {
+    document.getElementById('assignResidentId').value = residentId;
+    document.getElementById('assignResidentName').textContent = residentName;
+    new bootstrap.Modal(document.getElementById('assignModal')).show();
+}
+
+// Store resident categories data
+const residentCategories = {};
+<?php foreach ($residents as $r): ?>
+    <?php if ($r['categories']): ?>
+        residentCategories[<?php echo (int)$r['resident_id']; ?>] = [
+            <?php
+            // Parse categories string to extract IDs and names
+            $catParts = explode(', ', $r['categories']);
+            $catArray = [];
+            foreach ($catParts as $catStr) {
+                if (preg_match('/^(.+) \((\d+)\)$/', $catStr, $matches)) {
+                    $catArray[] = "{id: " . (int)$matches[2] . ", name: '" . addslashes($matches[1]) . "'}";
+                }
+            }
+            echo implode(', ', $catArray);
+            ?>
+        ];
+    <?php endif; ?>
+<?php endforeach; ?>
+
+function unassignCategory(residentId, residentName) {
+    document.getElementById('unassignResidentId').value = residentId;
+    document.getElementById('unassignResidentName').textContent = residentName;
+
+    const select = document.getElementById('unassignCategoryId');
+    select.innerHTML = '<option value="">Select Category to Unassign</option>';
+    
+    const categories = residentCategories[residentId] || [];
+    categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.id;
+        option.textContent = cat.name;
+        select.appendChild(option);
+    });
+
+    new bootstrap.Modal(document.getElementById('unassignModal')).show();
 }
 </script>
 
-<?php require 'includes/footer.php'; ?>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

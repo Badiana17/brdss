@@ -31,7 +31,7 @@ try {
         }
 
         // Collect & sanitize inputs
-        $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+        $id = isset($_POST['resident_id']) ? (int)$_POST['resident_id'] : 0;
         $first_name = trim((string)filter_input(INPUT_POST, 'first_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS));
         $middle_name = trim((string)filter_input(INPUT_POST, 'middle_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS));
         $last_name = trim((string)filter_input(INPUT_POST, 'last_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS));
@@ -45,8 +45,7 @@ try {
         $address = trim((string)filter_input(INPUT_POST, 'address', FILTER_SANITIZE_FULL_SPECIAL_CHARS));
         $purok = trim((string)filter_input(INPUT_POST, 'purok', FILTER_SANITIZE_FULL_SPECIAL_CHARS));
         $occupation = trim((string)filter_input(INPUT_POST, 'occupation', FILTER_SANITIZE_FULL_SPECIAL_CHARS));
-        $monthly_income = trim((string)filter_input(INPUT_POST, 'monthly_income', FILTER_SANITIZE_NUMBER_FLOAT));
-        $status = trim((string)filter_input(INPUT_POST, 'status', FILTER_SANITIZE_FULL_SPECIAL_CHARS));
+        $monthly_income = isset($_POST['monthly_income']) && $_POST['monthly_income'] !== '' ? (float)$_POST['monthly_income'] : null;        $status = trim((string)filter_input(INPUT_POST, 'status', FILTER_SANITIZE_FULL_SPECIAL_CHARS));
         $remarks = trim((string)filter_input(INPUT_POST, 'remarks', FILTER_SANITIZE_FULL_SPECIAL_CHARS));
 
         if (isset($_POST['create'])) {
@@ -56,10 +55,10 @@ try {
             }
 
             $stmt = $pdo->prepare("
-                INSERT INTO residents 
-                (first_name, middle_name, last_name, suffix, birthdate, age, gender, civil_status, contact_no, email, address, purok, occupation, monthly_income, status, remarks) 
-                VALUES 
-                (:first_name, :middle_name, :last_name, :suffix, :birthdate, :age, :gender, :civil_status, :contact_no, :email, :address, :purok, :occupation, :monthly_income, :status, :remarks)
+                INSERT INTO residents
+                (first_name, middle_name, last_name, suffix, birthdate, gender, civil_status, contact_no, email, address, purok, occupation, monthly_income, status, remarks)
+                VALUES
+                (:first_name, :middle_name, :last_name, :suffix, :birthdate, :gender, :civil_status, :contact_no, :email, :address, :purok, :occupation, :monthly_income, :status, :remarks)
             ");
             $stmt->execute([
                 ':first_name' => $first_name,
@@ -67,7 +66,6 @@ try {
                 ':last_name' => $last_name,
                 ':suffix' => $suffix ?: null,
                 ':birthdate' => $birthdate ?: null,
-                ':age' => $age,
                 ':gender' => $gender ?: null,
                 ':civil_status' => $civil_status ?: null,
                 ':contact_no' => $contact_no,
@@ -85,14 +83,14 @@ try {
             
             $success = 'Resident created successfully.';
         } elseif (isset($_POST['update'])) {
-            if ($id <= 0 || $first_name === '' || $last_name === '') {
-                throw new Exception('Invalid input for update.');
-            }
+    if ($id <= 0 || $first_name === '' || $last_name === '') {
+        throw new Exception('Invalid input for update.');
+    }
 
             $stmt = $pdo->prepare("
-                UPDATE residents 
+                UPDATE residents
                 SET first_name = :first_name, middle_name = :middle_name, last_name = :last_name, suffix = :suffix,
-                    birthdate = :birthdate, age = :age, gender = :gender, civil_status = :civil_status, 
+                    birthdate = :birthdate, gender = :gender, civil_status = :civil_status,
                     contact_no = :contact_no, email = :email, address = :address, purok = :purok,
                     occupation = :occupation, monthly_income = :monthly_income, status = :status, remarks = :remarks
                 WHERE resident_id = :id
@@ -103,7 +101,6 @@ try {
                 ':last_name' => $last_name,
                 ':suffix' => $suffix ?: null,
                 ':birthdate' => $birthdate ?: null,
-                ':age' => $age,
                 ':gender' => $gender ?: null,
                 ':civil_status' => $civil_status ?: null,
                 ':contact_no' => $contact_no,
@@ -128,15 +125,49 @@ try {
             $stmt = $pdo->prepare("SELECT first_name, last_name FROM residents WHERE resident_id = :id");
             $stmt->execute([':id' => $id]);
             $resident = $stmt->fetch();
-            
-            $stmt = $pdo->prepare("DELETE FROM residents WHERE resident_id = :id");
+
+            $stmt = $pdo->prepare("UPDATE residents SET deleted_at = NOW() WHERE resident_id = :id");
             $stmt->execute([':id' => $id]);
 
             if ($resident) {
                 logActivity((int)$_SESSION['user_id'], 'Deleted resident: ' . $resident['first_name'] . ' ' . $resident['last_name'], 'DELETE', 'residents', $id);
             }
-            
+
             $success = 'Resident deleted successfully.';
+        } elseif (isset($_POST['quick_assist'])) {
+            $resident_id = (int)($_POST['resident_id'] ?? 0);
+            if ($resident_id <= 0) {
+                throw new Exception('Invalid resident ID.');
+            }
+
+            // Fetch first active category
+            $stmt = $pdo->prepare("SELECT category_id FROM beneficiary_category WHERE is_active = 1 ORDER BY category_id LIMIT 1");
+            $stmt->execute();
+            $category = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$category) {
+                throw new Exception('No active beneficiary category found.');
+            }
+            $category_id = (int)$category['category_id'];
+
+            // Insert quick assistance record
+            $stmt = $pdo->prepare("
+                INSERT INTO assistance_records
+                (resident_id, category_id, assistance_type, amount, date_given, encoded_by, remarks)
+                VALUES
+                (:resident_id, :category_id, :assistance_type, :amount, :date_given, :encoded_by, :remarks)
+            ");
+            $stmt->execute([
+                ':resident_id' => $resident_id,
+                ':category_id' => $category_id,
+                ':assistance_type' => 'Quick Assistance',
+                ':amount' => null,
+                ':date_given' => date('Y-m-d'),
+                ':encoded_by' => (int)$_SESSION['user_id'],
+                ':remarks' => 'Recorded via quick assistance button'
+            ]);
+
+            logActivity((int)$_SESSION['user_id'], 'Quick assistance recorded for resident ID ' . $resident_id, 'CREATE', 'assistance_records', $pdo->lastInsertId());
+            $success = 'Quick assistance recorded successfully.';
         }
     }
 } catch (Exception $e) {
@@ -167,31 +198,29 @@ try {
     <title><?php echo sanitize($pageTitle); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { display: flex; }
-        .sidebar { width: 250px; background: #f8f9fa; min-height: 100vh; padding: 20px; }
-        .sidebar a { display: block; padding: 10px; margin: 5px 0; color: #333; text-decoration: none; border-radius: 5px; }
-        .sidebar a:hover { background: #e9ecef; }
-        .sidebar a.active { background: #0d6efd; color: white; }
-        .main-content { flex: 1; padding: 30px; }
+        body {
+            display: flex;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+        }
+        .main-content {
+            margin-left: 250px;
+            flex: 1;
+            padding: 2rem;
+        }
+        .content-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
     </style>
 </head>
 <body>
-<div class="sidebar">
-    <h4>Menu</h4>
-    <a href="dashboard.php">📊 Dashboard</a>
-    <a href="residents.php" class="active">👥 Residents</a>
-    <a href="resident_beneficiary.php">🎯 Beneficiaries</a>
-    <a href="assistance_records.php">💰 Assistance</a>
-    <a href="beneficiary_category.php">📂 Categories</a>
-    <a href="users.php">👤 Users</a>
-    <a href="activity_log.php">📝 Activity Log</a>
-    <a href="backup_history.php">💾 Backups</a>
-    <hr>
-    <a href="logout.php">🚪 Logout</a>
-</div>
-
-<div class="main-content">
-    <h2>👥 Residents Management</h2>
+    <?php include 'includes/sidebar.php'; ?>
+    
+    <div class="main-content">
+        <div class="content-wrapper">
+            <h2>👥 Residents Management</h2>
+            <p class="text-muted mb-4">Manage and track all barangay residents</p>
 
     <?php if ($error): ?>
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -242,16 +271,36 @@ try {
                             <td><?php echo sanitize($r['contact_no']); ?></td>
                             <td><?php echo sanitize($r['address']); ?></td>
                             <td>
-                                <span class="badge bg-<?php echo $r['status'] === 'Active' ? 'success' : ($r['status'] === 'Inactive' ? 'secondary' : 'warning'); ?>">
-                                    <?php echo sanitize($r['status']); ?>
-                                </span>
-                            </td>
+                           <?php
+                               $badgeClass = 'secondary';
+                               switch($r['status']) {
+                                   case 'Active':
+                                       $badgeClass = 'success';
+                                       break;
+                                   case 'Inactive':
+                                       $badgeClass = 'secondary';
+                                       break;
+                                   case 'Deceased':
+                                       $badgeClass = 'dark';
+                                       break;
+                                   case 'Moved':
+                                       $badgeClass = 'info';
+                                       break;
+                                   case 'Archived':
+                                       $badgeClass = 'warning';
+                                       break;
+                               }
+                               ?>
+                               <span class="badge bg-<?php echo $badgeClass; ?>">
+                                   <?php echo sanitize($r['status']); ?>
+                               </span>
+                           </td>
                             <td>
                                 <button class="btn btn-sm btn-warning" onclick='openEditModal(<?php echo json_encode($r, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>)'>
-                                    ✏️ Edit
+                                    Edit
                                 </button>
                                 <button class="btn btn-sm btn-danger" onclick="deleteResident(<?php echo (int)$r['resident_id']; ?>)">
-                                    🗑️ Delete
+                                    Delete
                                 </button>
                             </td>
                         </tr>
@@ -297,7 +346,7 @@ try {
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Age</label>
-                                <input type="number" name="age" class="form-control" min="0" placeholder="30">
+                                <input type="number" name="age" class="form-control" min="0" placeholder="Auto-calculated" readonly>
                             </div>
                         </div>
                     </div>
@@ -402,7 +451,7 @@ try {
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="hidden" name="id" id="edit_id">
+                 <input type="hidden" name="resident_id" id="edit_id"> 
                     <div class="mb-3">
                         <label class="form-label">First Name *</label>
                         <input type="text" name="first_name" id="edit_first_name" class="form-control" required>
@@ -429,7 +478,7 @@ try {
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Age</label>
-                                <input type="number" name="age" id="edit_age" class="form-control" min="0">
+                                <input type="number" name="age" id="edit_age" class="form-control" min="0" readonly>
                             </div>
                         </div>
                     </div>
@@ -524,12 +573,24 @@ try {
         </div>
     </div>
 
-    <!-- Delete Form (Hidden) -->
-    <form id="deleteForm" method="POST" style="display:none;">
-        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
-        <input type="hidden" name="id" id="delete_id">
-        <button type="submit" name="delete"></button>
-    </form>
+    <!-- Hidden Delete Form -->
+<form method="POST" id="deleteForm" style="display:none;">
+    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
+    <input type="hidden" name="resident_id" id="delete-id">
+    <input type="hidden" name="delete" value="1">
+</form>
+
+<script>
+// Delete resident function
+function deleteResident(id) {
+    if (confirm("Are you sure you want to delete this resident? This action cannot be undone.")) {
+        document.getElementById("delete-id").value = id;
+        document.getElementById("deleteForm").submit();
+    }
+}
+</script>
+
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -563,9 +624,10 @@ function openEditModal(resident) {
     new bootstrap.Modal(document.getElementById('editModal')).show();
 }
 
+// Fixed deleteResident: targets the existing hidden input id="delete-id"
 function deleteResident(id) {
     if (confirm('Are you sure you want to delete this resident? This action cannot be undone.')) {
-        document.getElementById('delete_id').value = id;
+        document.getElementById('delete-id').value = id;
         document.getElementById('deleteForm').submit();
     }
 }

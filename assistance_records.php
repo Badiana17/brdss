@@ -188,75 +188,97 @@ try {
 } catch (Exception $e) {
     error_log('Categories fetch error: ' . $e->getMessage());
 }
-?><!doctype html>
+?><!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo sanitize($pageTitle); ?></title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+        }
+        .main-content {
+            margin-left: 250px;
+            flex: 1;
+            padding: 2rem;
+        }
+        .content-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+    </style>
 </head>
-<body class="bg-light">
-<div class="container my-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Assistance Records</h2>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">+ Add New Record</button>
-    </div>
+<body>
+    <?php include 'includes/sidebar.php'; ?>
+    
+    <div class="main-content">
+        <div class="content-wrapper">
+            <h2>🤝 Assistance Records</h2>
+            <p class="text-muted mb-4">Manage and track all assistance provided to residents</p>
 
-    <?php if (!empty($message)): ?>
-        <div class="alert alert-<?php echo sanitize($messageType); ?> alert-dismissible fade show" role="alert">
-            <?php echo sanitize($message); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <?php endif; ?>
+            <?php if (!empty($message)): ?>
+                <div class="alert alert-<?php echo sanitize($messageType); ?> alert-dismissible fade show" role="alert">
+                    <?php echo sanitize($message); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
 
-    <div class="card shadow-sm">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-striped table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>ID</th>
-                            <th>Resident</th>
-                            <th>Category</th>
-                            <th>Type</th>
-                            <th>Amount</th>
-                            <th>Date</th>
-                            <th>By</th>
-                            <th style="width:150px;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (!empty($records)): ?>
-                            <?php foreach ($records as $record): ?>
+            <div class="mb-3">
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">+ Add New Record</button>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0">
+                            <thead class="table-light">
                                 <tr>
-                                    <td><?php echo (int)$record['record_id']; ?></td>
-                                    <td><?php echo sanitize($record['first_name'] . ' ' . $record['last_name']); ?></td>
-                                    <td><?php echo sanitize($record['category_name']); ?></td>
-                                    <td><?php echo sanitize($record['assistance_type']); ?></td>
-                                    <td><?php echo ($record['amount'] !== null && $record['amount'] !== '') ? '₱' . number_format((float)$record['amount'], 2) : '-'; ?></td>
-                                    <td><?php echo !empty($record['date_given']) ? date('M d, Y', strtotime($record['date_given'])) : '-'; ?></td>
-                                    <td><?php echo sanitize($record['username'] ?? 'System'); ?></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-warning" onclick='editRecord(<?php echo json_encode($record, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>)'>Edit</button>
-                                        <form method="POST" style="display:inline;" onsubmit="return confirm('Delete?');">
-                                            <input type="hidden" name="record_id" value="<?php echo (int)$record['record_id']; ?>">
-                                            <button type="submit" name="delete" class="btn btn-sm btn-danger">Delete</button>
-                                        </form>
-                                    </td>
+                                    <th>ID</th>
+                                    <th>Resident</th>
+                                    <th>Category</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                    <th>By</th>
+                                    <th style="width:150px;">Actions</th>
                                 </tr>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <tr>
-                                <td colspan="8" class="text-center py-4 text-muted">No records found.</td>
-                            </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+                            </thead>
+                            <tbody>
+                                <?php if (!empty($records)): ?>
+                                    <?php foreach ($records as $record): ?>
+                                        <tr>
+                                            <td><?php echo (int)$record['record_id']; ?></td>
+                                            <td><?php echo sanitize($record['first_name'] . ' ' . $record['last_name']); ?></td>
+                                            <td><?php echo sanitize($record['category_name']); ?></td>
+                                            <td><?php echo sanitize($record['assistance_type']); ?></td>
+                                            <td><?php echo ($record['amount'] !== null && $record['amount'] !== '') ? '₱' . number_format((float)$record['amount'], 2) : '-'; ?></td>
+                                            <td><?php echo !empty($record['date_given']) ? date('M d, Y', strtotime($record['date_given'])) : '-'; ?></td>
+                                            <td><?php echo sanitize($record['username'] ?? 'System'); ?></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-warning" onclick='editRecord(<?php echo json_encode($record, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>)'>Edit</button>
+                                                <form method="POST" style="display:inline;" onsubmit="return confirm('Delete?');">
+                                                    <input type="hidden" name="record_id" value="<?php echo (int)$record['record_id']; ?>">
+                                                    <button type="submit" name="delete" class="btn btn-sm btn-danger">Delete</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="8" class="text-center py-4 text-muted">No records found.</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
 <!-- Create Modal -->
 <div class="modal fade" id="createModal" tabindex="-1">
@@ -274,7 +296,7 @@ try {
                             <select name="resident_id" class="form-select" required>
                                 <option value="">Select Resident</option>
                                 <?php foreach ($residents as $r): ?>
-                                <option value="<?php echo (int)$r['resident_id']; ?>"><?php echo sanitize($r['first_name'] . ' ' . $r['last_name']); ?></option>
+                                <option value="<?php echo (int)$r['resident_id']; ?>" <?php echo ($selectedResidentId === (int)$r['resident_id']) ? 'selected' : ''; ?>><?php echo sanitize($r['first_name'] . ' ' . $r['last_name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
