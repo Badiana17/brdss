@@ -1,0 +1,44 @@
+:root{
+  --brdss-dark: #243B53;     /* dark blue base */
+  --brdss-dark-2:#1B2B3A;    /* deeper */
+  --brdss-accent:#2F5D8A;    /* button/accents (still blue) */
+}
+
+.brdss-bg{
+  background: radial-gradient(1200px 600px at 50% 20%, #2c4a66 0%, var(--brdss-dark) 45%, var(--brdss-dark-2) 100%);
+}
+
+.brdss-card{
+  width: 100%;
+  max-width: 440px;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.brdss-header{
+  background: linear-gradient(135deg, #2e4963 0%, #203547 100%);
+}
+
+.brdss-logo{
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.85);
+  box-shadow: 0 8px 18px rgba(0,0,0,.18);
+}
+
+.brdss-btn{
+  background: var(--brdss-accent);
+  color: #fff;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+.brdss-btn:hover{
+  filter: brightness(1.05);
+  color: #fff;
+}
+
+.form-control{
+  border-radius: 12px;
+}
