@@ -7,15 +7,50 @@ if (!isset($_SESSION["user_id"])) {
 
 require_once "../config/db.php";
 
-date_default_timezone_set("Asia/Manila");
-
 $dbHost = "127.0.0.1";
 $dbUser = "root";
 $dbPass = "";
-$dbName = "brdss_db";
+$dbName = "brdss";
 
-$backupFolder = __DIR__ . "/files/";
+$tables = [];
+$tableResult = mysqli_query($conn, "SHOW TABLES");
+while ($row = mysqli_fetch_row($tableResult)) {
+    $tables[] = $row[0];
+}
 
+$sqlScript = "";
+foreach ($tables as $table) {
+    $result = mysqli_query($conn, "SELECT * FROM `$table`");
+    $columnCount = mysqli_num_fields($result);
+
+    $sqlScript .= "\n-- Table structure for `$table`\n";
+    $row2 = mysqli_fetch_row(mysqli_query($conn, "SHOW CREATE TABLE `$table`"));
+    $sqlScript .= $row2[1] . ";\n\n";
+
+    $sqlScript .= "-- Dumping data for table `$table`\n";
+    for ($i = 0; $i < $columnCount; $i++) {
+        while ($row = mysqli_fetch_row($result)) {
+            $sqlScript .= "INSERT INTO `$table` VALUES(";
+            for ($j = 0; $j < $columnCount; $j++) {
+                $row[$j] = $row[$j] ?? '';
+                $row[$j] = addslashes($row[$j]);
+                $row[$j] = str_replace("\n", "\\n", $row[$j]);
+                if (isset($row[$j])) {
+                    $sqlScript .= '"' . $row[$j] . '"';
+                } else {
+                    $sqlScript .= '""';
+                }
+                if ($j < ($columnCount - 1)) {
+                    $sqlScript .= ',';
+                }
+            }
+            $sqlScript .= ");\n";
+        }
+    }
+    $sqlScript .= "\n";
+}
+
+$backupFolder = __DIR__ . '/files/';
 if (!is_dir($backupFolder)) {
     mkdir($backupFolder, 0777, true);
 }
@@ -24,40 +59,8 @@ $timestamp = date("Y-m-d_H-i-s");
 $fileName = "backup_" . $timestamp . ".sql";
 $filePath = $backupFolder . $fileName;
 
-$tables = [];
-$tableResult = mysqli_query($conn, "SHOW TABLES");
-
-while ($row = mysqli_fetch_row($tableResult)) {
-    $tables[] = $row[0];
-}
-
-$sqlScript = "";
-foreach ($tables as $table) {
-    $createTableResult = mysqli_query($conn, "SHOW CREATE TABLE `$table`");
-    $createTableRow = mysqli_fetch_row($createTableResult);
-
-    $sqlScript .= "\n\n" . $createTableRow[1] . ";\n\n";
-
-    $dataResult = mysqli_query($conn, "SELECT * FROM `$table`");
-    while ($dataRow = mysqli_fetch_assoc($dataResult)) {
-        $columns = array_map(function($col) {
-            return "`" . $col . "`";
-        }, array_keys($dataRow));
-
-        $values = array_map(function($value) use ($conn) {
-            if (is_null($value)) {
-                return "NULL";
-            }
-            return "'" . mysqli_real_escape_string($conn, $value) . "'";
-        }, array_values($dataRow));
-
-        $sqlScript .= "INSERT INTO `$table` (" . implode(", ", $columns) . ") VALUES (" . implode(", ", $values) . ");\n";
-    }
-}
-
 if (file_put_contents($filePath, $sqlScript) !== false) {
     $fileSize = filesize($filePath);
-    $relativePath = "backups/files/" . $fileName;
     $userId = (int)$_SESSION['user_id'];
     $location = "External";
 
@@ -65,7 +68,7 @@ if (file_put_contents($filePath, $sqlScript) !== false) {
     mysqli_stmt_bind_param($stmt, "issi", $userId, $fileName, $location, $fileSize);
     mysqli_stmt_execute($stmt);
 
-    $_SESSION['backup_success'] = "Backup created successfully.";
+    $_SESSION['backup_success'] = "Database backup created successfully.";
 } else {
     $_SESSION['backup_error'] = "Failed to create backup file.";
 }

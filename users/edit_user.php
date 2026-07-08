@@ -3,7 +3,7 @@ require_once "../config/auth.php";
 require_role(["super_admin"]);
 require_once "../config/db.php";
 
-function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, "UTF-8"); }
+function h(mixed $s): string { return htmlspecialchars((string)$s, ENT_QUOTES, "UTF-8"); }
 
 $username = $_SESSION["username"] ?? "User";
 $role     = $_SESSION["role"] ?? "super_admin";

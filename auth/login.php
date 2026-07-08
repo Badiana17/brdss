@@ -2,7 +2,7 @@
 // auth/login.php
 session_start();
 if (isset($_SESSION["user_id"])) {
-  header("Location: ../dashboard/index.php");
+  header("Location: ../dashboard/super.php");
   exit;
 }
 

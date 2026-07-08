@@ -4,7 +4,7 @@ require_role(["admin_staff","super_admin"]);
 require_once "../../config/db.php";
 ?>
 
-<form method="post" action="../create.php" id="addResidentForm">
+<form method="post" action="create.php" id="addResidentForm">
   <div class="row g-3">
 
     <div class="col-12"><div class="fw-bold text-primary">Personal Identity</div></div>
@@ -104,20 +104,21 @@ require_once "../../config/db.php";
 
     <div class="col-12">
       <div class="form-check">
-        <input class="form-check-input ben-cat" type="checkbox" id="cat_senior" value="Senior Citizen">
+        <input class="form-check-input" type="radio" name="beneficiary_category" id="cat_none" value="None" checked>
+        <label class="form-check-label" for="cat_none">None / Standard Resident</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="beneficiary_category" id="cat_senior" value="Senior">
         <label class="form-check-label" for="cat_senior">Senior Citizen</label>
       </div>
       <div class="form-check">
-        <input class="form-check-input ben-cat" type="checkbox" id="cat_pwd" value="PWD">
+        <input class="form-check-input" type="radio" name="beneficiary_category" id="cat_pwd" value="PWD">
         <label class="form-check-label" for="cat_pwd">PWD (Person with Disability)</label>
       </div>
       <div class="form-check">
-        <input class="form-check-input ben-cat" type="checkbox" id="cat_student" value="Student">
+        <input class="form-check-input" type="radio" name="beneficiary_category" id="cat_student" value="Student">
         <label class="form-check-label" for="cat_student">Student</label>
       </div>
-
-      <input type="hidden" name="beneficiary_category" id="a_beneficiary_category" value="None">
-      <div class="small text-muted mt-2">*Checkboxes behave like single-select (one category only).</div>
     </div>
 
     <div class="col-12 d-flex justify-content-end gap-2 mt-2">
@@ -144,17 +145,6 @@ window.initResidentsPartial = function () {
     });
   }
 
-  // Beneficiary single-select
-  const hiddenCat = document.getElementById("a_beneficiary_category");
-  document.querySelectorAll(".ben-cat").forEach(cb => {
-    cb.addEventListener("change", function(){
-      if (this.checked) {
-        document.querySelectorAll(".ben-cat").forEach(other => { if (other !== this) other.checked = false; });
-        hiddenCat.value = this.value;
-      } else {
-        hiddenCat.value = "None";
-      }
-    });
-  });
+
 };
 </script>

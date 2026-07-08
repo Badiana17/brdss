@@ -112,8 +112,8 @@ require_once "../config/db.php";
           <label class="form-label">Beneficiary Category</label>
 
           <div class="form-check">
-            <input class="form-check-input ben-cat" type="checkbox" id="cat_senior" value="Senior Citizen">
-            <label class="form-check-label" for="cat_senior">Senior Citizen</label>
+            <input class="form-check-input ben-cat" type="checkbox" id="cat_senior" value="Senior">
+            <label class="form-check-label" for="cat_senior">Senior</label>
           </div>
           <div class="form-check">
             <input class="form-check-input ben-cat" type="checkbox" id="cat_pwd" value="PWD">

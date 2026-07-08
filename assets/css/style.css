@@ -1,9 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 :root{
   --brdss-dark: #243B53;     /* dark blue base */
   --brdss-dark-2:#1B2B3A;    /* deeper */
   --brdss-accent:#2F5D8A;    /* button/accents (still blue) */
 }
 
+body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
 .brdss-bg{
   background: radial-gradient(1200px 600px at 50% 20%, #2c4a66 0%, var(--brdss-dark) 45%, var(--brdss-dark-2) 100%);
 }
@@ -23,8 +28,10 @@
   width: 44px;
   height: 44px;
   border-radius: 999px;
-  background: rgba(255,255,255,.85);
+  background: url('../brgylogo.jpg') center/cover no-repeat;
   box-shadow: 0 8px 18px rgba(0,0,0,.18);
+  border: 2px solid rgba(255,255,255,.85);
+  flex-shrink: 0;
 }
 
 .brdss-btn{

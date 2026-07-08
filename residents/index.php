@@ -9,7 +9,7 @@ $gender   = trim($_GET["gender"] ?? "All");
 $search   = trim($_GET["q"] ?? "");
 
 /* Build WHERE dynamically */
-$where = [];
+$where = ["deleted_at IS NULL"];
 $params = [];
 $types = "";
 
@@ -30,7 +30,7 @@ if ($search !== "") {
   $types .= "sssssss";
 }
 
-$whereSql = (count($where) > 0) ? ("WHERE " . implode(" AND ", $where)) : "";
+$whereSql = "WHERE " . implode(" AND ", $where);
 
 $sql = "
   SELECT
@@ -51,6 +51,11 @@ $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $username = $_SESSION["username"] ?? "User";
 $role = $_SESSION["role"] ?? "admin_staff";
 $dash = ($role === "super_admin") ? "../dashboard/super.php" : "../dashboard/super.php";
+$printUrl = "print.php?" . http_build_query([
+  "category" => $category,
+  "gender" => $gender,
+  "q" => $search,
+]);
 
 $flashSuccess = trim($_GET["success"] ?? "");
 $flashError   = trim($_GET["error"] ?? "");
@@ -165,7 +170,7 @@ $flashError   = trim($_GET["error"] ?? "");
             <label class="form-label small fw-semibold mb-1">Category</label>
             <select name="category" class="form-select form-select-sm">
               <?php
-                $cats = ["All","Student","Senior Citizen","PWD","Household Head","None"];
+                $cats = ["All","Student","Senior","PWD","None"];
                 foreach ($cats as $c) {
                   $sel = ($category === $c) ? "selected" : "";
                   echo "<option value=\"".htmlspecialchars($c)."\" $sel>".htmlspecialchars($c)."</option>";
@@ -316,10 +321,10 @@ $flashError   = trim($_GET["error"] ?? "");
                 <i class="bi bi-person-plus-fill me-1"></i>Add Resident
               </button>
 
-              <button type="button" class="btn btn-soft btn-sm" disabled>
+              <a class="btn btn-soft btn-sm" href="print.php?<?= htmlspecialchars(http_build_query(array_filter(['category' => $category !== 'All' ? $category : null, 'gender' => $gender !== 'All' ? $gender : null, 'q' => $search ?: null]))) ?>" target="_blank">
                 <i class="bi bi-printer-fill me-1"></i>Print
-              </button>
-              <span class="small muted ms-2 align-self-center">(Print disabled for now)</span>
+              </a>
+              <span class="small muted ms-2 align-self-center">Print current filtered residents list</span>
             </div>
           </div>
 

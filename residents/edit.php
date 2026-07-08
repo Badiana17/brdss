@@ -130,8 +130,8 @@ if (!$r) {
           <label class="form-label">Beneficiary Category</label>
           <?php $cat = $r["beneficiary_category"] ?? "None"; ?>
           <div class="form-check">
-            <input class="form-check-input e-ben-cat" type="checkbox" value="Senior Citizen" id="e_cat_senior" <?= ($cat==="Senior Citizen")?"checked":"" ?>>
-            <label class="form-check-label" for="e_cat_senior">Senior Citizen</label>
+            <input class="form-check-input e-ben-cat" type="checkbox" value="Senior" id="e_cat_senior" <?= ($cat==="Senior")?"checked":"" ?>>
+            <label class="form-check-label" for="e_cat_senior">Senior</label>
           </div>
           <div class="form-check">
             <input class="form-check-input e-ben-cat" type="checkbox" value="PWD" id="e_cat_pwd" <?= ($cat==="PWD")?"checked":"" ?>>

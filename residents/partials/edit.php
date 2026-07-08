@@ -16,7 +16,8 @@ if (!$r) { http_response_code(404); echo "Resident not found"; exit; }
 $cat = $r["beneficiary_category"] ?? "None";
 ?>
 
-<form method="post" action="/brdss/residents/update.php" id="editResidentForm">
+<form method="post" action="update.php" id="editResidentForm">
+  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf()) ?>">
   <input type="hidden" name="resident_id" value="<?= (int)$r["resident_id"] ?>">
 
   <div class="row g-3">
@@ -116,26 +117,27 @@ $cat = $r["beneficiary_category"] ?? "None";
 
     <div class="col-12">
       <div class="form-check">
-        <input class="form-check-input e-ben-cat" type="checkbox" id="e_cat_senior" value="Senior Citizen" <?= ($cat==="Senior Citizen")?"checked":"" ?>>
+        <input class="form-check-input" type="radio" name="beneficiary_category" id="e_cat_none" value="None" <?= ($cat==="None"||$cat===""||$cat==="Resident")?"checked":"" ?>>
+        <label class="form-check-label" for="e_cat_none">None / Standard Resident</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="beneficiary_category" id="e_cat_senior" value="Senior" <?= ($cat==="Senior")?"checked":"" ?>>
         <label class="form-check-label" for="e_cat_senior">Senior Citizen</label>
       </div>
       <div class="form-check">
-        <input class="form-check-input e-ben-cat" type="checkbox" id="e_cat_pwd" value="PWD" <?= ($cat==="PWD")?"checked":"" ?>>
+        <input class="form-check-input" type="radio" name="beneficiary_category" id="e_cat_pwd" value="PWD" <?= ($cat==="PWD")?"checked":"" ?>>
         <label class="form-check-label" for="e_cat_pwd">PWD</label>
       </div>
       <div class="form-check">
-        <input class="form-check-input e-ben-cat" type="checkbox" id="e_cat_student" value="Student" <?= ($cat==="Student")?"checked":"" ?>>
+        <input class="form-check-input" type="radio" name="beneficiary_category" id="e_cat_student" value="Student" <?= ($cat==="Student")?"checked":"" ?>>
         <label class="form-check-label" for="e_cat_student">Student</label>
       </div>
-
-      <input type="hidden" name="beneficiary_category" id="e_beneficiary_category" value="<?= htmlspecialchars($cat) ?>">
-      <div class="small text-muted mt-2">*Checkboxes behave like single-select (one category only).</div>
     </div>
 
     <div class="col-12 d-flex justify-content-between align-items-center mt-2">
       <button type="submit"
               class="btn btn-outline-danger btn-sm"
-              formaction="../delete.php"
+              formaction="delete.php"
               onclick="return confirm('Are you sure you want to delete this resident record?');">
         <i class="bi bi-trash me-1"></i>Delete
       </button>
@@ -167,17 +169,6 @@ window.initResidentsPartial = function () {
     });
   }
 
-  // Beneficiary single-select
-  const eHiddenCat = document.getElementById("e_beneficiary_category");
-  document.querySelectorAll(".e-ben-cat").forEach(cb => {
-    cb.addEventListener("change", function(){
-      if (this.checked) {
-        document.querySelectorAll(".e-ben-cat").forEach(other => { if (other !== this) other.checked = false; });
-        eHiddenCat.value = this.value;
-      } else {
-        eHiddenCat.value = "None";
-      }
-    });
-  });
+
 };
 </script>

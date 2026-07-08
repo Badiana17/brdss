@@ -3,7 +3,7 @@ require_once "../config/auth.php";
 require_role(["admin_staff","super_admin"]);
 require_once "../config/db.php";
 
-function go_back($msg, $ok=false) {
+function go_back(string $msg, bool $ok=false): void {
   $key = $ok ? "success" : "error";
   header("Location: index.php?$key=" . urlencode($msg));
   exit;
@@ -39,6 +39,7 @@ if (
 }
 
 // compute age server-side (source of truth)
+$computedAge = 0;
 try {
   $b = new DateTime($birthday);
   $t = new DateTime();
@@ -52,7 +53,7 @@ if ($computedAge < 0 || $computedAge > 130) {
 }
 
 // normalize beneficiary_category
-$allowedCats = ["Senior Citizen","PWD","Student","Household Head","None"];
+$allowedCats = ["Senior","PWD","Student","None"];
 if (!in_array($beneficiary_category, $allowedCats, true)) {
   $beneficiary_category = "None";
 }
@@ -95,5 +96,7 @@ $stmt->bind_param(
 if (!$stmt->execute()) {
   go_back("Insert failed: " . $stmt->error);
 }
+$insId = $conn->insert_id;
+write_activity_log($conn, "CREATE", "residents", $insId, "Added new resident: " . $first_name . " " . $last_name);
 
 go_back("Resident saved successfully!", true);

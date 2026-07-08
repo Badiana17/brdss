@@ -6,14 +6,30 @@ if (!isset($_SESSION["user_id"])) {
 }
 
 require_once "../config/db.php";
+require_once "../config/auth.php";
+require_once "../includes/role_guard.php";
+requireRole(["super_admin"]);
 
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    $_SESSION['backup_error'] = "Invalid request method.";
+    header("Location: index.php");
+    exit;
+}
+
+$csrf = $_POST["csrf_token"] ?? "";
+if (!validate_csrf($csrf)) {
+    $_SESSION['backup_error'] = "Invalid CSRF token.";
+    header("Location: index.php");
+    exit;
+}
+
+if (!isset($_POST['id']) || !is_numeric($_POST['id'])) {
     $_SESSION['backup_error'] = "Invalid backup ID.";
     header("Location: index.php");
     exit;
 }
 
-$backupId = (int) $_GET['id'];
+$backupId = (int) $_POST['id'];
 
 $stmt = mysqli_prepare($conn, "SELECT * FROM backup_history WHERE backup_id = ?");
 mysqli_stmt_bind_param($stmt, "i", $backupId);

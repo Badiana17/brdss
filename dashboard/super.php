@@ -12,7 +12,7 @@ $aidCount = 0;
 $studentsCount = 0;
 $seniorCount = 0;
 $pwdCount = 0;
-$householdHeadCount = 0;
+$residentCount = 0;
 $totalAssistedResidents = 0;
 
 // ✅ ADDED ONLY: role-based display variables
@@ -130,9 +130,9 @@ if ($qPie) {
     $val = (int)($row["total"] ?? 0);
 
     if ($cat === "Student") $studentsCount = $val;
-    elseif ($cat === "Senior Citizen") $seniorCount = $val;
+    elseif ($cat === "Senior") $seniorCount = $val;
     elseif ($cat === "PWD") $pwdCount = $val;
-    elseif ($cat === "Household Head") $householdHeadCount = $val;
+    elseif ($cat === "None") $residentCount = $val;
   }
 }
 ?>
@@ -270,8 +270,8 @@ if ($qPie) {
     <!-- TOPBAR -->
     <div class="topbar px-4 py-3 d-flex align-items-center justify-content-between">
       <div>
-        <div class="fw-bold"><?= htmlspecialchars($dashboardTitle) ?></div>
-        <div class="small text-muted">Welcome, <?= htmlspecialchars($username) ?>.</div>
+        <div class="fw-bold fs-4"><?= htmlspecialchars($dashboardTitle) ?></div>
+        <div class="small text-muted">Overview and management of system metrics.</div>
       </div>
       <span class="badge badge-soft rounded-pill px-3 py-2">
         Role: <?= htmlspecialchars($displayRole) ?>
@@ -348,7 +348,7 @@ if ($qPie) {
               </div>
 
               <div class="small text-muted mb-3">
-                Shows distribution of assisted residents by category: Students, Seniors, PWD, and Household Heads.
+                Shows distribution of assisted residents by category: Students, Seniors, PWD, and Residents.
                 <span class="ms-1">
                   (Showing: <b><?= htmlspecialchars($selectedYearLabel) ?></b>)
                 </span>
@@ -363,7 +363,7 @@ if ($qPie) {
                     <div class="small text-muted">Total Assisted Residents</div>
                     <div class="h2 fw-bold mb-0"><?= $totalAssistedResidents ?></div>
                     <div class="small text-muted mt-2">
-                      *Counted as DISTINCT beneficiaries with status = <b>Received</b>
+                      Counted as DISTINCT beneficiaries with status = <b>Received</b>
                       <?php if ($selectedYear !== ""): ?>
                         for year <b><?= htmlspecialchars($selectedYear) ?></b>.
                       <?php else: ?>
@@ -466,12 +466,12 @@ if ($qPie) {
 </div>
 
 <script>
-const beneficiaryLabels = ["Students", "Senior Citizens", "PWD", "Household Head"];
+const beneficiaryLabels = ["Students", "Seniors", "PWD", "Residents"];
 const beneficiaryValues = [
   <?= (int)$studentsCount ?>,
   <?= (int)$seniorCount ?>,
   <?= (int)$pwdCount ?>,
-  <?= (int)$householdHeadCount ?>
+  <?= (int)$residentCount ?>
 ];
 
 new Chart(document.getElementById("beneficiaryPie"), {

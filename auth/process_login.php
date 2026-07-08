@@ -17,7 +17,7 @@ if ($username === "" || $password === "") {
 }
 
 $stmt = $conn->prepare("
-    SELECT user_id, username, password_hash, role, is_active
+    SELECT user_id, username, password_hash, role, is_active, locked_until
     FROM users
     WHERE username = ?
     LIMIT 1
@@ -29,6 +29,12 @@ $user = $result->fetch_assoc();
 
 if (!$user || (int)$user["is_active"] !== 1) {
     header("Location: login.php?error=" . urlencode("Invalid credentials or inactive account."));
+    exit;
+}
+
+$lockedUntil = $user["locked_until"] ?? null;
+if ($lockedUntil !== null && time() < strtotime($lockedUntil)) {
+    header("Location: login.php?error=" . urlencode("Account is locked. Try again later."));
     exit;
 }
 

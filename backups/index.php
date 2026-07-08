@@ -6,6 +6,7 @@ if (!isset($_SESSION["user_id"])) {
 }
 
 require_once "../config/db.php";
+require_once "../config/auth.php";
 require_once "../includes/role_guard.php";
 requireRole(["super_admin"]);
 
@@ -192,7 +193,7 @@ $username = $_SESSION["username"] ?? "Super Admin";
     <main class="content">
         <div class="topbar px-4 py-3 d-flex align-items-center justify-content-between">
             <div>
-                <div class="fw-bold">Backup History</div>
+                <div class="fw-bold fs-4">Backup History</div>
                 <div class="small text-muted">Manage database archives and recovery files.</div>
             </div>
             <span class="badge badge-soft rounded-pill px-3 py-2">
@@ -246,7 +247,11 @@ $username = $_SESSION["username"] ?? "Super Admin";
                                             <td>
                                                 <div class="d-flex flex-column gap-1 align-items-start">
                                                     <a class="backup-btn backup-btn-download" href="download_backup.php?id=<?= (int)$row['backup_id'] ?>">Download</a>
-                                                    <a class="backup-btn backup-btn-delete" href="delete_backup.php?id=<?= (int)$row['backup_id'] ?>" onclick="return confirm('Delete this backup?')">Delete</a>
+                                                    <form method="POST" action="delete_backup.php" style="display:inline;" onsubmit="return confirm('Delete this backup?')">
+                                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf()) ?>">
+                                                        <input type="hidden" name="id" value="<?= (int)$row['backup_id'] ?>">
+                                                        <button type="submit" class="backup-btn backup-btn-delete border-0">Delete</button>
+                                                    </form>
                                                 </div>
                                             </td>
                                         </tr>

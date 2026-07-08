@@ -3,7 +3,7 @@
 $host = "localhost";
 $user = "root";
 $pass = "";
-$dbname = "brdss_db";
+$dbname = "brdss";
 
 $conn = new mysqli($host, $user, $pass, $dbname);
 

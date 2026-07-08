@@ -4,7 +4,7 @@ require_role(["super_admin"]);
 require_once "../includes/role_guard.php";
 require_once "../config/db.php";
 
-function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, "UTF-8"); }
+function h(mixed $s): string { return htmlspecialchars((string)$s, ENT_QUOTES, "UTF-8"); }
 
 $username_session = $_SESSION["username"] ?? "Super Admin";
 $dash = "../dashboard/super.php";
