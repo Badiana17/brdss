@@ -7,8 +7,8 @@ if (!isset($_SESSION["user_id"])) {
 
 require_once "../config/db.php";
 require_once "../config/auth.php";
-require_once "../includes/role_guard.php";
-requireRole(["super_admin"]);
+
+require_role(["super_admin"]);
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     $_SESSION['backup_error'] = "Invalid request method.";

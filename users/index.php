@@ -1,7 +1,7 @@
 <?php
 require_once "../config/auth.php";
 require_role(["super_admin"]);
-require_once "../includes/role_guard.php";
+
 require_once "../config/db.php";
 
 function h(mixed $s): string { return htmlspecialchars((string)$s, ENT_QUOTES, "UTF-8"); }

@@ -137,6 +137,20 @@ if ($qPie) {
     elseif ($cat === "None") $residentCount = $val;
   }
 }
+
+if (isset($_GET["ajax"])) {
+  header("Content-Type: application/json");
+  echo json_encode([
+    "success" => true,
+    "selectedYearLabel" => $selectedYearLabel,
+    "totalAssistedResidents" => $totalAssistedResidents,
+    "studentsCount" => $studentsCount,
+    "seniorCount" => $seniorCount,
+    "pwdCount" => $pwdCount,
+    "residentCount" => $residentCount
+  ]);
+  exit;
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -332,7 +346,7 @@ if ($qPie) {
                       id="yearFilter"
                       class="form-select form-select-sm"
                       style="min-width: 130px;"
-                      onchange="this.form.submit()"
+                      onchange="updateDashboard(this.value)"
                     >
                       <option value="">All Years</option>
                       <?php foreach ($availableYears as $yr): ?>
@@ -352,7 +366,7 @@ if ($qPie) {
               <div class="small text-muted mb-3">
                 Shows distribution of assisted residents by category: Students, Seniors, PWD, and Residents.
                 <span class="ms-1">
-                  (Showing: <b><?= htmlspecialchars($selectedYearLabel) ?></b>)
+                  (Showing: <b id="showingYearLabel"><?= htmlspecialchars($selectedYearLabel) ?></b>)
                 </span>
               </div>
 
@@ -365,8 +379,8 @@ if ($qPie) {
                 <div class="col-12 col-lg-5">
                   <div class="p-3 bg-light soft-box">
                     <div class="small text-muted">Total Assisted Residents</div>
-                    <div class="h2 fw-bold mb-0"><?= $totalAssistedResidents ?></div>
-                    <div class="small text-muted mt-2">
+                    <div class="h2 fw-bold mb-0" id="totalAssistedCount"><?= $totalAssistedResidents ?></div>
+                    <div class="small text-muted mt-2" id="totalAssistedDetails">
                       Counted as DISTINCT beneficiaries with status = <b>Received</b>
                       <?php if ($selectedYear !== ""): ?>
                         for year <b><?= htmlspecialchars($selectedYear) ?></b>.
@@ -496,7 +510,7 @@ if (total > 0) {
   }
 }
 
-new Chart(document.getElementById("beneficiaryPie"), {
+window.beneficiaryChart = new Chart(document.getElementById("beneficiaryPie"), {
   type: "pie",
   data: {
     labels: beneficiaryLabels,
@@ -504,12 +518,31 @@ new Chart(document.getElementById("beneficiaryPie"), {
       data: percentageValues,
       rawCounts: rawValues, // Retain raw counts for tooltip
       backgroundColor: ["#2F5D8A", "#4C7EA8", "#6FA3C9", "#9BC3E2"],
-      borderWidth: 1
+      hoverBackgroundColor: ["#1B3A5A", "#335C7E", "#4B7C9E", "#729BB5"],
+      borderWidth: 2,
+      borderColor: '#ffffff',
+      hoverBorderWidth: 4,
+      hoverBorderColor: '#ffffff',
+      hoverOffset: 25
     }]
   },
   options: {
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: {
+        left: 20,
+        right: 20,
+        top: 10,
+        bottom: 10
+      }
+    },
+    animation: {
+      duration: 1500,
+      easing: 'easeOutQuart',
+      animateScale: true,
+      animateRotate: true
+    },
     plugins: {
       legend: { 
         position: "bottom",
@@ -531,6 +564,65 @@ new Chart(document.getElementById("beneficiaryPie"), {
     }
   }
 });
+
+function updateDashboard(year) {
+  fetch('super.php?ajax=1&year=' + encodeURIComponent(year))
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Update DOM elements
+        document.getElementById('showingYearLabel').textContent = data.selectedYearLabel;
+        document.getElementById('totalAssistedCount').textContent = data.totalAssistedResidents;
+        
+        let detailsHtml = 'Counted as DISTINCT beneficiaries with status = <b>Received</b> ';
+        if (year !== "") {
+          detailsHtml += 'for year <b>' + escapeHtml(year) + '</b>.';
+        } else {
+          detailsHtml += 'across <b>all years</b>.';
+        }
+        document.getElementById('totalAssistedDetails').innerHTML = detailsHtml;
+        
+        // Calculate new percentage values
+        const newRawValues = [
+          parseInt(data.studentsCount) || 0,
+          parseInt(data.seniorCount) || 0,
+          parseInt(data.pwdCount) || 0,
+          parseInt(data.residentCount) || 0
+        ];
+        
+        const newTotal = newRawValues.reduce((sum, val) => sum + val, 0);
+        let newPercentageValues = [0, 0, 0, 0];
+        
+        if (newTotal > 0) {
+          newPercentageValues = newRawValues.map(val => Math.round((val / newTotal) * 100));
+          const currentTotal = newPercentageValues.reduce((sum, val) => sum + val, 0);
+          const diff = 100 - currentTotal;
+          if (diff !== 0) {
+            const maxIdx = newPercentageValues.indexOf(Math.max(...newPercentageValues));
+            newPercentageValues[maxIdx] += diff;
+          }
+        }
+        
+        // Dynamic smooth update of the Chart.js instance!
+        window.beneficiaryChart.data.datasets[0].data = newPercentageValues;
+        window.beneficiaryChart.data.datasets[0].rawCounts = newRawValues;
+        window.beneficiaryChart.update();
+      }
+    })
+    .catch(err => console.error('Error updating dashboard dynamic content:', err));
+}
+
+function escapeHtml(string) {
+  return String(string).replace(/[&<>"']/g, function (s) {
+    return {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[s];
+  });
+}
 </script>
 
 </body>

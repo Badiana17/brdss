@@ -6,8 +6,8 @@ if (!isset($_SESSION["user_id"])) {
 }
 
 require_once "../config/db.php";
-require_once "../includes/role_guard.php";
-requireRole(["super_admin"]);
+
+require_role(["super_admin"]);
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     die("Invalid backup ID.");
