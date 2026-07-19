@@ -4,9 +4,9 @@
 
 /* ---------- Design Tokens ---------- */
 :root {
-  --ad-primary: #1a73e8;
-  --ad-primary-light: #e8f0fe;
-  --ad-primary-hover: #1765cc;
+  --ad-primary: #2F5D8A;
+  --ad-primary-light: #eef4fa;
+  --ad-primary-hover: #264a6e;
   --ad-dark: #1B2B3A;
   --ad-dark-2: #243B53;
   --ad-surface: #ffffff;

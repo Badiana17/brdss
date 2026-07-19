@@ -42,7 +42,18 @@ $res = $stmt->get_result();
 while ($row = $res->fetch_assoc()) $aids[] = $row;
 $stmt->close();
 
-if ($aid_id === 0 && count($aids) > 0) $aid_id = (int)$aids[0]["id"];
+$isValidAid = false;
+foreach ($aids as $a) {
+    if ((int)$a["id"] === $aid_id) {
+        $isValidAid = true;
+        break;
+    }
+}
+if (!$isValidAid && count($aids) > 0) {
+    $aid_id = (int)$aids[0]["id"];
+} else if (!$isValidAid) {
+    $aid_id = 0;
+}
 
 function beneficiary_type_from_category(string $category): string {
   return match ($category) {
@@ -381,6 +392,10 @@ function paginationUrl(int $page): string {
     <a class="btn btn-outline-light w-100" href="../auth/logout.php">
       <i class="bi bi-box-arrow-right me-2"></i>Logout
     </a>
+
+    <div class="small opacity-50 mt-3">
+      Works offline via LAN (XAMPP + MySQL)
+    </div>
   </aside>
 
   <!-- CONTENT -->
@@ -436,7 +451,7 @@ function paginationUrl(int $page): string {
                   <?php endforeach; ?>
                 </select>
               </div>
-              <div class="col-12 col-md-4">
+              <div class="col-12 col-md-3">
                 <label>Aid Program</label>
                 <select name="aid_id" class="form-select form-select-sm" onchange="this.form.submit()">
                   <?php if (count($aids) === 0): ?>
@@ -450,10 +465,11 @@ function paginationUrl(int $page): string {
                   <?php endif; ?>
                 </select>
               </div>
-              <div class="col-12 col-md-3">
+
+              <div class="col-12 col-md-2">
                 <label>Search</label>
                 <input type="text" class="form-control form-control-sm" name="q"
-                       placeholder="Name, address, barangay..."
+                       placeholder="Search..."
                        value="<?= h($search) ?>">
               </div>
               <div class="col-12 col-md-2 d-grid">
@@ -480,7 +496,7 @@ function paginationUrl(int $page): string {
             <div class="px-3 py-3 border-bottom d-flex flex-wrap gap-2 align-items-center justify-content-between">
               <div class="d-flex gap-2 align-items-center">
                 <button type="submit" class="ad-btn ad-btn-primary ad-btn-sm" <?= ($aid_id === 0) ? "disabled" : "" ?>
-                        onclick="return confirm('Save distribution for selected beneficiaries?')">
+                        onclick="return confirm('Save distribution for selected beneficiaries? Records will be saved as Pending initially.')">
                   <i class="bi bi-save2-fill"></i> Save Distribution
                 </button>
                 <button type="button" class="ad-btn ad-btn-outline ad-btn-sm" onclick="selectAll(true)">
@@ -489,6 +505,14 @@ function paginationUrl(int $page): string {
                 <button type="button" class="ad-btn ad-btn-outline ad-btn-sm" onclick="selectAll(false)">
                   <i class="bi bi-square"></i> Clear
                 </button>
+                <div class="d-flex align-items-center gap-1 bg-light px-2 rounded border ms-2">
+                  <span class="small fw-semibold text-muted"><i class="bi bi-funnel-fill"></i> Show:</span>
+                  <select class="form-select form-select-sm border-0 bg-transparent" style="width:130px; box-shadow:none;" onchange="filterBeneficiaryTable(this.value)">
+                      <option value="All">All</option>
+                      <option value="Not Yet">Not Yet Given</option>
+                      <option value="Given">Given (Received)</option>
+                  </select>
+                </div>
               </div>
               <div style="min-width:280px; flex:1; max-width:400px;">
                 <input type="text" class="form-control form-control-sm" name="remarks"
@@ -514,7 +538,7 @@ function paginationUrl(int $page): string {
                       <th style="width:170px">Last Received</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody id="beneficiaryTableBody">
                   <?php if (count($beneficiaries) === 0): ?>
                     <tr>
                       <td colspan="11">
@@ -624,11 +648,6 @@ function paginationUrl(int $page): string {
                 <button type="submit" class="ad-btn ad-btn-primary ad-btn-sm flex-grow-1">
                   <i class="bi bi-funnel-fill"></i> Filter
                 </button>
-                <?php if ($hasActiveFilters): ?>
-                  <a href="index.php?tab=records" class="ad-btn ad-btn-outline ad-btn-sm" title="Clear all filters">
-                    <i class="bi bi-x-lg"></i>
-                  </a>
-                <?php endif; ?>
               </div>
             </div>
           </form>
@@ -1215,6 +1234,27 @@ setTimeout(() => {
     setTimeout(() => el.remove(), 500);
   });
 }, 5000);
+
+function filterBeneficiaryTable(val) {
+  const rows = document.querySelectorAll("#beneficiaryTableBody tr");
+  rows.forEach(row => {
+    if (row.querySelector(".ad-empty")) return;
+    const statusBadge = row.querySelector(".ad-badge");
+    if (!statusBadge) return;
+    
+    const statusText = statusBadge.textContent.trim();
+    
+    if (val === "All") {
+      row.style.display = "";
+    } else if (val === "Given" && statusText === "Given") {
+      row.style.display = "";
+    } else if (val === "Not Yet" && statusText === "Not Yet") {
+      row.style.display = "";
+    } else {
+      row.style.display = "none";
+    }
+  });
+}
 </script>
 </body>
 </html>

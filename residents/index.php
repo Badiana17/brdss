@@ -48,6 +48,18 @@ if (!empty($params)) $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
+/* Archived residents query */
+$archiveStmt = $conn->query("
+  SELECT resident_id, first_name, middle_name, last_name, suffix,
+         gender, age, barangay, zone, beneficiary_category, deleted_at
+  FROM residents
+  WHERE deleted_at IS NOT NULL
+  ORDER BY deleted_at DESC
+");
+$archivedRows = $archiveStmt ? $archiveStmt->fetch_all(MYSQLI_ASSOC) : [];
+$archivedCount = count($archivedRows);
+$csrf = generate_csrf();
+
 $username = $_SESSION["username"] ?? "User";
 $role = $_SESSION["role"] ?? "admin_staff";
 $dash = ($role === "super_admin") ? "../dashboard/super.php" : "../dashboard/super.php";
@@ -92,7 +104,8 @@ $flashError   = trim($_GET["error"] ?? "");
 
     .card-box{ border-radius:10px; border:1px solid rgba(0,0,0,.06); }
     .filter-pill{ border-radius:10px; border:1px solid rgba(0,0,0,.10); background:#fff; padding:10px; }
-    .btn-soft{ border-radius:10px; border:1px solid rgba(0,0,0,.10); background:#fff; }
+    .btn-soft{ border-radius:10px; border:1px solid rgba(0,0,0,.10); background:#fff; color:#6b7280; transition:all .2s; font-weight:600; font-size:.85rem; padding:8px 16px; }
+    .btn-soft:hover{ background:#eef4fa; color:#2F5D8A; border-color:#2F5D8A; }
     .action-dot{ width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; border:1px solid rgba(0,0,0,.10); background:#fff; }
 
     .table thead th{ background:#f3f4f6; font-weight:700; font-size:.85rem; white-space: nowrap; }
@@ -140,6 +153,10 @@ $flashError   = trim($_GET["error"] ?? "");
     <a class="btn btn-outline-light w-100" href="../auth/logout.php">
       <i class="bi bi-box-arrow-right me-2"></i>Logout
     </a>
+
+    <div class="small opacity-50 mt-3">
+      Works offline via LAN (XAMPP + MySQL)
+    </div>
   </aside>
 
   <!-- CONTENT -->
@@ -149,9 +166,32 @@ $flashError   = trim($_GET["error"] ?? "");
         <div class="fw-bold fs-4">Residents</div>
         <div class="small muted">Manage and view the comprehensive database of barangay residents.</div>
       </div>
-      <a class="btn btn-soft" href="<?= $dash ?>">
-        <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
-      </a>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button"
+                class="btn brdss-btn btn-sm js-open-modal"
+                data-title="Add New Resident"
+                data-url="partials/add.php">
+          <i class="bi bi-person-plus-fill me-1"></i>Add Resident
+        </button>
+
+        <!-- Archive icon button with badge -->
+        <button type="button"
+                class="btn btn-soft btn-sm position-relative"
+                data-bs-toggle="modal"
+                data-bs-target="#archiveModal"
+                title="View Archived Residents">
+          <i class="bi bi-archive-fill"></i>
+          <?php if ($archivedCount > 0): ?>
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.65rem;">
+              <?= $archivedCount ?>
+            </span>
+          <?php endif; ?>
+        </button>
+
+        <a class="btn btn-soft btn-sm" href="<?= $dash ?>">
+          <i class="bi bi-arrow-left me-1"></i>Dashboard
+        </a>
+      </div>
     </div>
 
     <div class="container-fluid px-4 py-4">
@@ -337,6 +377,89 @@ $flashError   = trim($_GET["error"] ?? "");
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+<!-- ARCHIVE MODAL -->
+<div class="modal fade" id="archiveModal" tabindex="-1" aria-labelledby="archiveModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content" style="border-radius:12px;">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="archiveModalLabel">
+          <i class="bi bi-archive-fill me-2 text-warning"></i>Archive / Recycle Bin
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <?php if (count($archivedRows) === 0): ?>
+          <div class="text-center py-5">
+            <i class="bi bi-archive" style="font-size:3rem;color:#d1d5db;"></i>
+            <div class="mt-2 fw-semibold text-muted">Archive is empty</div>
+            <div class="small text-muted mt-1">No deleted residents found.</div>
+          </div>
+        <?php else: ?>
+          <div class="px-3 pt-3 pb-1">
+            <div class="small text-muted">
+              <i class="bi bi-info-circle me-1"></i>
+              Restoring a resident will set their status back to <b>Active</b>. Aid distribution history is preserved.
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <div style="max-height:420px;overflow-y:auto;">
+              <table class="table table-hover mb-0" style="font-size:.875rem;">
+                <thead>
+                  <tr>
+                    <th style="background:#f3f4f6;font-weight:700;white-space:nowrap;">Action</th>
+                    <th style="background:#f3f4f6;font-weight:700;white-space:nowrap;">Last Name</th>
+                    <th style="background:#f3f4f6;font-weight:700;white-space:nowrap;">First Name</th>
+                    <th style="background:#f3f4f6;font-weight:700;white-space:nowrap;">Middle</th>
+                    <th style="background:#f3f4f6;font-weight:700;white-space:nowrap;">Gender</th>
+                    <th style="background:#f3f4f6;font-weight:700;white-space:nowrap;">Age</th>
+                    <th style="background:#f3f4f6;font-weight:700;white-space:nowrap;">Barangay</th>
+                    <th style="background:#f3f4f6;font-weight:700;white-space:nowrap;">Zone</th>
+                    <th style="background:#f3f4f6;font-weight:700;white-space:nowrap;">Category</th>
+                    <th style="background:#f3f4f6;font-weight:700;white-space:nowrap;">Deleted At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($archivedRows as $ar): ?>
+                    <tr>
+                      <td style="vertical-align:middle;">
+                        <form method="post" action="restore.php"
+                              onsubmit="return confirm('Restore <?= htmlspecialchars(addslashes($ar['first_name'] . ' ' . $ar['last_name'])) ?>?');">
+                          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+                          <input type="hidden" name="resident_id" value="<?= (int)$ar['resident_id'] ?>">
+                          <button type="submit" class="btn btn-success btn-sm" title="Restore">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                          </button>
+                        </form>
+                      </td>
+                      <td style="vertical-align:middle;white-space:nowrap;"><?= htmlspecialchars($ar['last_name'] ?? '') ?></td>
+                      <td style="vertical-align:middle;white-space:nowrap;"><?= htmlspecialchars($ar['first_name'] ?? '') ?></td>
+                      <td style="vertical-align:middle;white-space:nowrap;"><?= htmlspecialchars($ar['middle_name'] ?? '') ?></td>
+                      <td style="vertical-align:middle;white-space:nowrap;"><?= htmlspecialchars($ar['gender'] ?? '') ?></td>
+                      <td style="vertical-align:middle;"><?= htmlspecialchars($ar['age'] ?? '') ?></td>
+                      <td style="vertical-align:middle;white-space:nowrap;"><?= htmlspecialchars($ar['barangay'] ?? '') ?></td>
+                      <td style="vertical-align:middle;"><?= htmlspecialchars($ar['zone'] ?? '') ?></td>
+                      <td style="vertical-align:middle;"><?= htmlspecialchars($ar['beneficiary_category'] ?? '') ?></td>
+                      <td style="vertical-align:middle;white-space:nowrap;">
+                        <span style="background:#fff3cd;color:#856404;border:1px solid rgba(133,100,4,.25);border-radius:6px;padding:2px 8px;font-size:.78rem;font-weight:600;">
+                          <i class="bi bi-clock me-1"></i>
+                          <?= !empty($ar['deleted_at']) ? date('M d, Y h:i A', strtotime($ar['deleted_at'])) : '—' ?>
+                        </span>
+                      </td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        <?php endif; ?>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-soft btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- REUSABLE MODAL (loads content from separate files) -->
 <div class="modal fade" id="residentModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered" style="max-width:820px;">
@@ -354,6 +477,7 @@ $flashError   = trim($_GET["error"] ?? "");
 async function openResidentModal(title, url){
   document.getElementById("residentModalTitle").textContent = title;
   document.getElementById("residentModalBody").innerHTML = "Loading...";
+  delete window.initResidentsPartial; // Prevent leftover functions from crashing other views
 
   const modalEl = document.getElementById("residentModal");
   const modal = new bootstrap.Modal(modalEl);
@@ -366,8 +490,19 @@ async function openResidentModal(title, url){
 
     document.getElementById("residentModalBody").innerHTML = html;
 
-    // init scripts inside partial after it loads (age calc, checkbox logic, etc.)
-    if (window.initResidentsPartial) window.initResidentsPartial();
+    // Execute scripts inside the dynamically loaded HTML
+    const scripts = document.getElementById("residentModalBody").querySelectorAll("script");
+    scripts.forEach(oldScript => {
+      const newScript = document.createElement("script");
+      Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+      newScript.textContent = oldScript.textContent;
+      oldScript.parentNode.replaceChild(newScript, oldScript);
+    });
+
+    // Run initialization if the script defined it
+    if (typeof window.initResidentsPartial === "function") {
+      window.initResidentsPartial();
+    }
   } catch (e) {
     document.getElementById("residentModalBody").innerHTML =
       `<div class="alert alert-danger mb-0">Error loading content.</div>`;

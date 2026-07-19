@@ -103,7 +103,9 @@ if ($qAid) {
 $sqlTotalAssisted = "
   SELECT COUNT(DISTINCT a.beneficiary_id) AS c
   FROM aid_distribution a
+  INNER JOIN residents r ON r.resident_id = a.beneficiary_id
   WHERE a.status = 'Received'
+    AND r.deleted_at IS NULL
   $yearFilterSql
 ";
 $qTotalAssisted = $conn->query($sqlTotalAssisted);
@@ -356,7 +358,9 @@ if ($qPie) {
 
               <div class="row g-3 align-items-center">
                 <div class="col-12 col-lg-7">
-                  <canvas id="beneficiaryPie" height="170"></canvas>
+                  <div style="width: 100%; height: 300px;">
+                    <canvas id="beneficiaryPie"></canvas>
+                  </div>
                 </div>
                 <div class="col-12 col-lg-5">
                   <div class="p-3 bg-light soft-box">
@@ -467,26 +471,63 @@ if ($qPie) {
 
 <script>
 const beneficiaryLabels = ["Students", "Seniors", "PWD", "Residents"];
-const beneficiaryValues = [
+const rawValues = [
   <?= (int)$studentsCount ?>,
   <?= (int)$seniorCount ?>,
   <?= (int)$pwdCount ?>,
   <?= (int)$residentCount ?>
 ];
 
+// Calculate total to convert to percentages
+const total = rawValues.reduce((sum, val) => sum + val, 0);
+let percentageValues = [0, 0, 0, 0];
+
+if (total > 0) {
+  // Map raw values to rounded percentages
+  percentageValues = rawValues.map(val => Math.round((val / total) * 100));
+  
+  // Ensure exact 100% total by adjusting the largest value for any rounding discrepancies
+  const currentTotal = percentageValues.reduce((sum, val) => sum + val, 0);
+  const diff = 100 - currentTotal;
+  
+  if (diff !== 0) {
+    const maxIdx = percentageValues.indexOf(Math.max(...percentageValues));
+    percentageValues[maxIdx] += diff;
+  }
+}
+
 new Chart(document.getElementById("beneficiaryPie"), {
   type: "pie",
   data: {
     labels: beneficiaryLabels,
     datasets: [{
-      data: beneficiaryValues,
+      data: percentageValues,
+      rawCounts: rawValues, // Retain raw counts for tooltip
       backgroundColor: ["#2F5D8A", "#4C7EA8", "#6FA3C9", "#9BC3E2"],
       borderWidth: 1
     }]
   },
   options: {
+    responsive: true,
+    maintainAspectRatio: false,
     plugins: {
-      legend: { position: "bottom" }
+      legend: { 
+        position: "bottom",
+        labels: {
+          padding: 20,
+          usePointStyle: true,
+          font: { size: 12 }
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            let label = context.label || '';
+            let percent = context.parsed || 0;
+            return `${label}: ${percent}%`;
+          }
+        }
+      }
     }
   }
 });

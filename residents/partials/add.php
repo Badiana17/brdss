@@ -121,6 +121,68 @@ require_once "../../config/db.php";
       </div>
     </div>
 
+    <!-- SENIOR FIELDS -->
+    <div class="col-12" id="a_senior_fields" style="display:none;">
+      <div class="p-3 border rounded" style="background:#f0f6ff;">
+        <div class="fw-semibold text-primary mb-2"><i class="bi bi-person-badge me-1"></i>Senior Citizen Details</div>
+        <div class="row g-2">
+          <div class="col-md-5">
+            <label class="form-label form-label-sm">OSCA ID No.</label>
+            <input class="form-control form-control-sm" name="osca_id_no" placeholder="OSCA-XXXX-XXXX">
+          </div>
+          <div class="col-md-5">
+            <label class="form-label form-label-sm">OSCA Issued Date</label>
+            <input type="date" class="form-control form-control-sm" name="osca_issued_date">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PWD FIELDS -->
+    <div class="col-12" id="a_pwd_fields" style="display:none;">
+      <div class="p-3 border rounded" style="background:#fff6ed;">
+        <div class="fw-semibold text-warning mb-2"><i class="bi bi-universal-access me-1"></i>PWD Details</div>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label form-label-sm">Disability Type</label>
+            <input class="form-control form-control-sm" name="disability_type" placeholder="e.g. Visual, Hearing, Orthopedic">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm">PWD ID No.</label>
+            <input class="form-control form-control-sm" name="pwd_id_no" placeholder="PWD-XXXX-XXXX">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm">Guardian Name</label>
+            <input class="form-control form-control-sm" name="guardian_name" placeholder="Full name">
+          </div>
+          <div class="col-12">
+            <label class="form-label form-label-sm">Remarks</label>
+            <textarea class="form-control form-control-sm" name="pwd_remarks" rows="2" placeholder="Additional remarks..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STUDENT FIELDS -->
+    <div class="col-12" id="a_student_fields" style="display:none;">
+      <div class="p-3 border rounded" style="background:#eefaf1;">
+        <div class="fw-semibold text-success mb-2"><i class="bi bi-mortarboard me-1"></i>Student Details</div>
+        <div class="row g-2">
+          <div class="col-md-5">
+            <label class="form-label form-label-sm">Grade / Year Level</label>
+            <input class="form-control form-control-sm" name="grade_level" placeholder="e.g. Grade 10, 3rd Year College">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label form-label-sm">Enrollment Status</label>
+            <select class="form-select form-select-sm" name="student_is_active">
+              <option value="1">Currently Enrolled</option>
+              <option value="0">Not Enrolled</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="col-12 d-flex justify-content-end gap-2 mt-2">
       <button type="button" class="btn btn-soft btn-sm" data-bs-dismiss="modal">Cancel</button>
       <button type="submit" class="btn brdss-btn btn-sm"><i class="bi bi-save2 me-1"></i>Save Resident</button>
@@ -145,6 +207,20 @@ window.initResidentsPartial = function () {
     });
   }
 
+  // Category show/hide
+  const radios = document.querySelectorAll("input[name='beneficiary_category']");
+  const seniorBox  = document.getElementById("a_senior_fields");
+  const pwdBox     = document.getElementById("a_pwd_fields");
+  const studentBox = document.getElementById("a_student_fields");
 
+  function toggleCatFields() {
+    const val = document.querySelector("input[name='beneficiary_category']:checked")?.value || "None";
+    seniorBox.style.display  = val === "Senior"  ? "" : "none";
+    pwdBox.style.display     = val === "PWD"     ? "" : "none";
+    studentBox.style.display = val === "Student" ? "" : "none";
+  }
+
+  radios.forEach(r => r.addEventListener("change", toggleCatFields));
+  toggleCatFields();
 };
 </script>

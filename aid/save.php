@@ -44,10 +44,16 @@ if (!validate_csrf($csrfToken)) {
 /* --- Parse input --- */
 $aid_type_id = isset($_POST["aid_type_id"]) ? (int)$_POST["aid_type_id"] : 0;
 $category    = trim($_POST["category"] ?? "Resident");
+$status_input = trim($_POST["status"] ?? "Pending");
 $remarks     = trim($_POST["remarks"] ?? "");
 $ids         = $_POST["beneficiary_ids"] ?? [];
 $role        = $_SESSION["role"] ?? "admin_staff";
 $userId      = $_SESSION["user_id"] ?? 0;
+
+$allowedStatuses = ["Pending", "Received", "Cancelled"];
+if (!in_array($status_input, $allowedStatuses, true)) {
+    $status_input = "Pending";
+}
 
 /* --- Validation --- */
 if ($aid_type_id <= 0) {
@@ -83,14 +89,14 @@ try {
         INSERT INTO aid_distribution
             (aid_type_id, beneficiary_type, beneficiary_id, status, remarks)
         VALUES
-            (?, ?, ?, 'Received', ?)
+            (?, ?, ?, ?, ?)
     ");
 
     $ok = 0;
     $insertedIds = [];
 
     foreach ($cleanIds as $bid) {
-        $stmt->bind_param("isis", $aid_type_id, $beneficiary_type, $bid, $remarks);
+        $stmt->bind_param("isiss", $aid_type_id, $beneficiary_type, $bid, $status_input, $remarks);
         if ($stmt->execute()) {
             $ok++;
             $insertedIds[] = $conn->insert_id;

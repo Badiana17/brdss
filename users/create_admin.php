@@ -6,101 +6,53 @@ require_once "../config/db.php";
 function h(mixed $s): string { return htmlspecialchars((string)$s, ENT_QUOTES, "UTF-8"); }
 
 $username = $_SESSION["username"] ?? "User";
-$role     = $_SESSION["role"] ?? "super_admin";
 $dash     = "../dashboard/super.php";
+$flashError = "";
 
-$userId = isset($_GET["id"]) ? (int)$_GET["id"] : 0;
-if ($userId <= 0) {
-  header("Location: index.php?error=" . urlencode("Invalid user ID."));
-  exit;
+// Check user count
+$q = $conn->query("SELECT COUNT(*) AS c FROM users");
+$userCount = $q->fetch_assoc()["c"];
+if ($userCount >= 2) {
+    header("Location: index.php?error=" . urlencode("Maximum user limit reached. Delete the existing Admin first to add a new one."));
+    exit;
 }
 
-/* Load target user */
-$stmt = $conn->prepare("
-  SELECT user_id, username, role, is_active, created_at
-  FROM users
-  WHERE user_id = ?
-  LIMIT 1
-");
-$stmt->bind_param("i", $userId);
-$stmt->execute();
-$res = $stmt->get_result();
-$user = $res->fetch_assoc();
-$stmt->close();
-
-if (!$user) {
-  header("Location: index.php?error=" . urlencode("User not found."));
-  exit;
-}
-
-$isProtectedSuperAdmin = ($user["role"] === "super_admin" && $user["username"] === "superadmin");
-
-/* Handle update */
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-  $newUsername = trim($_POST["username"] ?? "");
-  $newRole     = trim($_POST["role"] ?? "");
-  $isActive    = isset($_POST["is_active"]) ? 1 : 0;
-  $newPassword = $_POST["new_password"] ?? "";
+    $newUsername = trim($_POST["username"] ?? "");
+    $fullName    = trim($_POST["full_name"] ?? "");
+    $newPassword = $_POST["new_password"] ?? "";
+    $newRole     = "admin_staff"; // Enforced
+    $isActive    = isset($_POST["is_active"]) ? 1 : 0;
 
-  if ($newUsername === "" || $newRole === "") {
-    header("Location: edit_user.php?id={$userId}&error=" . urlencode("Please fill in all required fields."));
-    exit;
-  }
-
-  $allowedRoles = ["super_admin", "admin_staff"];
-  if (!in_array($newRole, $allowedRoles, true)) {
-    header("Location: edit_user.php?id={$userId}&error=" . urlencode("Invalid role selected."));
-    exit;
-  }
-
-  if ($isProtectedSuperAdmin) {
-    $newRole = "super_admin";
-    $isActive = 1;
-  }
-
-  /* Optional password update */
-  if ($newPassword !== "") {
-    if (strlen($newPassword) < 8) {
-      header("Location: edit_user.php?id={$userId}&error=" . urlencode("New password must be at least 8 characters."));
-      exit;
+    if ($newUsername === "" || $newPassword === "") {
+        $flashError = "Please fill in all required fields.";
+    } elseif (strlen($newPassword) < 8) {
+        $flashError = "Password must be at least 8 characters.";
+    } else {
+        $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+        
+        $ins = $conn->prepare("INSERT INTO users (username, password_hash, full_name, role, is_active) VALUES (?, ?, ?, ?, ?)");
+        $ins->bind_param("ssssi", $newUsername, $passwordHash, $fullName, $newRole, $isActive);
+        
+        if ($ins->execute()) {
+            header("Location: index.php?success=" . urlencode("Admin user added successfully."));
+            exit;
+        } else {
+            if ($conn->errno === 1062) {
+                $flashError = "Username already exists.";
+            } else {
+                $flashError = "Failed to create user.";
+            }
+        }
     }
-
-    $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
-
-    $upd = $conn->prepare("
-      UPDATE users
-      SET username = ?, role = ?, is_active = ?, password_hash = ?
-      WHERE user_id = ?
-    ");
-    $upd->bind_param("ssisi", $newUsername, $newRole, $isActive, $passwordHash, $userId);
-  } else {
-    $upd = $conn->prepare("
-      UPDATE users
-      SET username = ?, role = ?, is_active = ?
-      WHERE user_id = ?
-    ");
-    $upd->bind_param("ssii", $newUsername, $newRole, $isActive, $userId);
-  }
-
-  if ($upd->execute()) {
-    $upd->close();
-    header("Location: index.php?success=" . urlencode("User updated successfully."));
-    exit;
-  }
-
-  $upd->close();
-  header("Location: edit_user.php?id={$userId}&error=" . urlencode("Failed to update user."));
-  exit;
 }
-
-$flashError = trim($_GET["error"] ?? "");
 ?>
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BRDSS | Edit User</title>
+  <title>BRDSS | Add User</title>
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
@@ -236,11 +188,11 @@ $flashError = trim($_GET["error"] ?? "");
       </div>
     </div>
 
-    <!-- FLOATING EDIT UI -->
+    <!-- FLOATING CREATE UI -->
     <div class="overlay-wrap">
       <div class="floating-card">
         <div class="floating-header">
-          <h5 class="floating-title">Edit User</h5>
+          <h5 class="floating-title">Add User (Admin)</h5>
           <a href="index.php" class="floating-close" aria-label="Close">&times;</a>
         </div>
 
@@ -251,76 +203,37 @@ $flashError = trim($_GET["error"] ?? "");
             <?php endif; ?>
 
             <div class="row g-3">
-              <div class="col-12">
+              <div class="col-12 col-md-6">
                 <label class="form-label small fw-semibold">Username</label>
-                <input
-                  type="text"
-                  name="username"
-                  class="form-control"
-                  required
-                  value="<?= h($user["username"]) ?>"
-                >
+                <input type="text" name="username" class="form-control" required>
               </div>
 
               <div class="col-12 col-md-6">
-                <label class="form-label small fw-semibold">Role</label>
-                <select
-                  name="role"
-                  class="form-select"
-                  <?= $isProtectedSuperAdmin ? "disabled" : "" ?>
-                  required
-                >
-                  <option value="admin_staff" <?= $user["role"] === "admin_staff" ? "selected" : "" ?>>Admin Staff</option>
-                  <option value="super_admin" <?= $user["role"] === "super_admin" ? "selected" : "" ?>>Super Admin</option>
-                </select>
-                <?php if ($isProtectedSuperAdmin): ?>
-                  <input type="hidden" name="role" value="super_admin">
-                <?php endif; ?>
+                <label class="form-label small fw-semibold">Full Name</label>
+                <input type="text" name="full_name" class="form-control">
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-semibold">Password</label>
+                <input type="password" name="new_password" class="form-control" required minlength="8">
               </div>
 
               <div class="col-12 col-md-6">
                 <label class="form-label small fw-semibold">Active</label>
-                <select
-                  name="is_active_select"
-                  class="form-select"
-                  onchange="document.getElementById('is_active_hidden').value = this.value"
-                  <?= $isProtectedSuperAdmin ? "disabled" : "" ?>
-                >
-                  <option value="1" <?= (int)$user["is_active"] === 1 ? "selected" : "" ?>>Yes</option>
-                  <option value="0" <?= (int)$user["is_active"] !== 1 ? "selected" : "" ?>>No</option>
+                <select name="is_active_select" class="form-select" onchange="document.getElementById('is_active_hidden').value = this.value">
+                  <option value="1" selected>Yes</option>
+                  <option value="0">No</option>
                 </select>
-                <input type="hidden" id="is_active_hidden" name="is_active" value="<?= (int)$user["is_active"] === 1 ? "1" : "0" ?>">
-                <?php if ($isProtectedSuperAdmin): ?>
-                  <input type="hidden" name="is_active" value="1">
-                <?php endif; ?>
+                <input type="hidden" id="is_active_hidden" name="is_active" value="1">
               </div>
 
-              <div class="col-12">
-                <label class="form-label small fw-semibold">New Password (optional)</label>
-                <input
-                  type="password"
-                  name="new_password"
-                  class="form-control"
-                  placeholder="Leave blank if you do not want to change the password"
-                >
-              </div>
-
-              <div class="col-12">
-                <label class="form-label small fw-semibold">Created At</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  value="<?= h($user["created_at"] ?? "") ?>"
-                  disabled
-                >
-              </div>
             </div>
           </div>
 
           <div class="px-4 pb-4 d-flex justify-content-end gap-2">
             <a href="index.php" class="btn btn-soft">Cancel</a>
             <button type="submit" class="btn brdss-btn">
-              <i class="bi bi-check2-circle me-1"></i>Save Changes
+              <i class="bi bi-person-plus-fill me-1"></i>Create Admin
             </button>
           </div>
         </form>
@@ -328,12 +241,5 @@ $flashError = trim($_GET["error"] ?? "");
     </div>
   </main>
 </div>
-
-<script>
-document.querySelector('select[name="is_active_select"]')?.addEventListener('change', function () {
-  const hidden = document.getElementById('is_active_hidden');
-  if (hidden) hidden.value = this.value === '1' ? '1' : '0';
-});
-</script>
 </body>
 </html>

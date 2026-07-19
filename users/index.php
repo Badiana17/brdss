@@ -58,6 +58,8 @@ if ($res) {
         $users[] = $row;
     }
 }
+
+$canAddUser = (count($users) < 2);
 ?>
 <!doctype html>
 <html lang="en">
@@ -155,6 +157,10 @@ if ($res) {
     <a class="btn btn-outline-light w-100" href="../auth/logout.php">
       <i class="bi bi-box-arrow-right me-2"></i>Logout
     </a>
+
+    <div class="small opacity-50 mt-3">
+      Works offline via LAN (XAMPP + MySQL)
+    </div>
   </aside>
 
   <!-- CONTENT -->
@@ -165,9 +171,15 @@ if ($res) {
         <div class="small muted">Manage administrator accounts and system access. Super Admin only.</div>
       </div>
       <div class="d-flex gap-2">
-        <a class="btn btn-soft" href="create_admin.php">
-          <i class="bi bi-person-plus-fill me-1"></i>Add User
-        </a>
+        <?php if ($canAddUser): ?>
+          <a class="btn btn-soft" href="create_admin.php">
+            <i class="bi bi-person-plus-fill me-1"></i>Add User
+          </a>
+        <?php else: ?>
+          <button class="btn btn-soft text-muted" disabled title="Maximum of 2 users allowed. Delete the Admin first to add a new one." style="cursor: not-allowed; opacity: 0.6;">
+            <i class="bi bi-person-plus-fill me-1"></i>Add User
+          </button>
+        <?php endif; ?>
       </div>
     </div>
 

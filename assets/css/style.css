@@ -35,15 +35,19 @@ body {
 }
 
 .brdss-btn{
-  background: var(--brdss-accent);
-  color: #fff;
-  border: 0;
+  background-color: var(--brdss-accent) !important;
+  color: #fff !important;
+  border: 1px solid var(--brdss-accent) !important;
   border-radius: 12px;
-  padding: 12px 16px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: .85rem;
 }
-.brdss-btn:hover{
-  filter: brightness(1.05);
-  color: #fff;
+.brdss-btn:hover, .brdss-btn:active, .brdss-btn:focus {
+  background-color: var(--brdss-accent) !important;
+  color: #fff !important;
+  border-color: var(--brdss-accent) !important;
+  filter: brightness(1.1);
 }
 
 .form-control{
